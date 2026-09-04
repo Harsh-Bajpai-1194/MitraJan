@@ -3,7 +3,7 @@ import './ParticipantsPage.css';
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
 import { getUserColor } from './utils/getUserColor.js';
 
-const ParticipantsPage = ({ roomName, onClose }) => {
+const ParticipantsPage = ({ roomName, onClose, theme }) => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,7 +47,7 @@ const ParticipantsPage = ({ roomName, onClose }) => {
   }, [roomName]);
 
   return (
-    <div className="members-page">
+    <div className={`members-page ${theme === 'dark' ? 'dark-mode' : ''}`}>
       <header className="members-header">
         <h2>All Members in "{roomName}" {!loading && `(${members.length})`}</h2>
         <button onClick={onClose} className="close-btn" title="Close">×</button>
