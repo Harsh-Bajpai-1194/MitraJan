@@ -2,18 +2,31 @@ import React from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 const GoogleSignIn = ({ onSignIn }) => {
-    const handleSuccess = (credentialResponse) => {
+    const handleSuccess = async (credentialResponse) => {
         try {
-            // Decode the JWT token to extract the user's Google info
-            const payloadBase64 = credentialResponse.credential.split('.')[1];
-            const decodedJson = atob(payloadBase64);
-            const payload = JSON.parse(decodedJson);
-            
-            if (payload && payload.name) {
-                onSignIn({ name: payload.name, email: payload.email, picture: payload.picture });
+            const token = credentialResponse.credential;
+
+            // Send Google JWT to backend to verify signature cryptographically
+            const response = await fetch('/api/auth/google', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token }),
+            });
+
+            const data = await response.json();
+
+            // Only log in if the backend confirms valid Google credentials
+            if (data.success && data.user) {
+                onSignIn(data.user);
+            } else {
+                console.error('Backend Google Auth Failed:', data.message);
+                alert('Authentication failed: Invalid Google token.');
             }
         } catch (error) {
-            console.error('Error decoding Google JWT', error);
+            console.error('Error contacting authentication backend:', error);
+            alert('Unable to contact authentication server. Please try again.');
         }
     };
 

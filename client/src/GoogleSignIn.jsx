@@ -1,18 +1,32 @@
 import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
 
 const GoogleSignIn = ({ onSignIn }) => {
-    const handleSuccess = (credentialResponse) => {
+    const handleSuccess = async (credentialResponse) => {
         try {
-            // Decode the JWT token to extract the user's Google info
-            const payload = jwtDecode(credentialResponse.credential);
-            
-            if (payload && payload.name) {
-                onSignIn({ name: payload.name, email: payload.email, picture: payload.picture });
+            const token = credentialResponse.credential;
+
+            // Send Google JWT to backend to verify signature cryptographically
+            const response = await fetch('/api/auth/google', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token }),
+            });
+
+            const data = await response.json();
+
+            // Only log in if the backend confirms valid Google credentials
+            if (data.success && data.user) {
+                onSignIn(data.user);
+            } else {
+                console.error('Backend Google Auth Failed:', data.message);
+                alert('Authentication failed: Invalid Google token.');
             }
         } catch (error) {
-            console.error('Error decoding Google JWT', error);
+            console.error('Error contacting authentication backend:', error);
+            alert('Unable to contact authentication server. Please try again.');
         }
     };
 
@@ -27,7 +41,6 @@ const GoogleSignIn = ({ onSignIn }) => {
             onSignIn({
                 name: 'Mock Admin',
                 email: 'harshbajpai1194@gmail.com',
-                // Using a service that provides placeholder avatars
                 picture: 'https://i.pravatar.cc/150?u=mockadmin' 
             });
         };
