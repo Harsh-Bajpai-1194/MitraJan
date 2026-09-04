@@ -28,10 +28,19 @@ A real-time chat application built with the **MERN** stack (**MongoDB**, **Expre
 ┃ ┗ ...
 ┣ 📜.env                 # Environment variables (MONGO_URI, etc.)
 ┣ 📜.gitignore           # Git ignore rules
+┣ 📜API_DOCS.md          # REST API & Socket.IO Event Documentation
 ┣ 📜package.json         # Root package with dev scripts
 ┣ 📜pnpm-lock.yaml       # PNPM lock file
 ┗ 📜README.md            # This file
 ```
+---
+
+## 📡 API & WebSocket Contracts
+
+Looking for backend REST endpoints (parameters, schemas, examples) and Socket.IO event contracts (`join room`, `chat message`, `typing`, `fetch older messages`)?
+
+👉 **[Read the Full API & WebSocket Documentation (API_DOCS.md)](API_DOCS.md)**
+
 ---
 
 ## 🖥️ Run Locally
