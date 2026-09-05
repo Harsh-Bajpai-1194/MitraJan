@@ -686,6 +686,7 @@ function App() {
             room={room}
             isLoggedIn={isLoggedIn}
             theme={theme}
+            setTheme={setTheme}
           />
         } />
         <Route path="/chat/:roomName" element={
@@ -811,7 +812,7 @@ function LoginView({ showRoomForm, setShowRoomForm, username, setUsername, handl
     </div>
   );
 }
-function ParticipantsRoute({ room, isLoggedIn, theme }) {
+function ParticipantsRoute({ room, isLoggedIn, theme, setTheme }) {
   const { roomName } = useParams();
   const decodedRoomName = decodeURIComponent(roomName || '');
   const navigate = useNavigate();
@@ -827,6 +828,7 @@ function ParticipantsRoute({ room, isLoggedIn, theme }) {
       roomName={decodedRoomName}
       onClose={handleClose}
       theme={theme}
+      setTheme={setTheme}
     />
   );
 }
