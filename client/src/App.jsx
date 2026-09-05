@@ -140,6 +140,16 @@ function App() {
     });
   };
 
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    if (theme === 'dark') {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, [theme]);
+
   useEffect(() => {
     const fetchSongs = async () => {
       try {
@@ -620,6 +630,8 @@ function App() {
               handleOpenCreateRoomPopup={handleOpenCreateRoomPopup}
               handleAdminLogin={handleAdminLogin}
               isAdmin={isAdmin}
+              theme={theme}
+              setTheme={setTheme}
             />
           )
         } />
@@ -637,6 +649,8 @@ function App() {
               handleOpenCreateRoomPopup={handleOpenCreateRoomPopup}
               handleAdminLogin={handleAdminLogin}
               isAdmin={isAdmin}
+              theme={theme}
+              setTheme={setTheme}
             />
           )
         } />
@@ -663,12 +677,16 @@ function App() {
             isAdmin={isAdmin}
             onOpenAdmin={() => navigate('/admin')}
             toggleBackgroundPicker={toggleBackgroundPicker}
+            theme={theme}
+            setTheme={setTheme}
           />
         } />
         <Route path="/participants/:roomName" element={
           <ParticipantsRoute
             room={room}
             isLoggedIn={isLoggedIn}
+            theme={theme}
+            setTheme={setTheme}
           />
         } />
         <Route path="/chat/:roomName" element={
@@ -715,6 +733,8 @@ function App() {
             showSettingsModal={showSettingsModal}
             setShowSettingsModal={setShowSettingsModal}
             spamWarning={spamWarning}
+            theme={theme}
+            setTheme={setTheme}
           />
         } />
         <Route path="/admin" element={
@@ -730,13 +750,25 @@ function App() {
     </>
   );
 }
-function LoginView({ showRoomForm, setShowRoomForm, username, setUsername, handleGoogleSignIn, handleOpenDiscoverRooms, handleOpenCreateRoomPopup, handleAdminLogin, isAdmin }) {
+function LoginView({ showRoomForm, setShowRoomForm, username, setUsername, handleGoogleSignIn, handleOpenDiscoverRooms, handleOpenCreateRoomPopup, handleAdminLogin, isAdmin, theme, setTheme }) {
   const isDevTesting = process.env.NODE_ENV !== 'production' || 
     window.location.hostname === 'localhost' || 
     window.location.hostname === '127.0.0.1' || 
     window.location.hostname.includes('dev');
+    
+  const toggleTheme = () => {
+    if (setTheme) {
+      setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    }
+  };
+
   return (
-    <div className="login-container">
+    <div className={`login-container ${theme === 'dark' ? 'dark-mode' : ''}`}>
+      <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
+        <button className="theme-toggle-btn" onClick={toggleTheme} title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+      </div>
       {!showRoomForm ? (
         <div className="login-form">
           <h2>Join Chat <div className="release-link-wrapper">
@@ -780,7 +812,7 @@ function LoginView({ showRoomForm, setShowRoomForm, username, setUsername, handl
     </div>
   );
 }
-function ParticipantsRoute({ room, isLoggedIn }) {
+function ParticipantsRoute({ room, isLoggedIn, theme, setTheme }) {
   const { roomName } = useParams();
   const decodedRoomName = decodeURIComponent(roomName || '');
   const navigate = useNavigate();
@@ -795,6 +827,8 @@ function ParticipantsRoute({ room, isLoggedIn }) {
     <ParticipantsPage
       roomName={decodedRoomName}
       onClose={handleClose}
+      theme={theme}
+      setTheme={setTheme}
     />
   );
 }
@@ -854,7 +888,9 @@ function ChatRoomRoute({
   toggleSpamProtection,
   showSettingsModal,
   setShowSettingsModal,
-  spamWarning
+  spamWarning,
+  theme,
+  setTheme
 }) {
   const { roomName } = useParams();
   const decodedRoomName = decodeURIComponent(roomName || '');
@@ -879,9 +915,14 @@ function ChatRoomRoute({
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
+  
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
   return (
-    <div className={`chat-container${selectedBackground ? ' background-selected' : ''}`} style={{
-      backgroundColor: selectedBackground || '#FFFFFF',
+    <div className={`chat-container${selectedBackground ? ' background-selected' : ''} ${theme === 'dark' ? 'dark-mode' : ''}`} style={{
+      backgroundColor: selectedBackground || undefined,
       transition: 'background-color 0.25s ease',
     }}>
       <header className="chat-header">
@@ -921,6 +962,9 @@ function ChatRoomRoute({
               </div>
             </div>
           </div>
+          <button className="theme-toggle-btn" onClick={toggleTheme} title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
           <button className="change-bg-btn" onClick={toggleBackgroundPicker} title="Change Background">
             <img src={`${process.env.PUBLIC_URL}/change_bg.png`} alt="Change Background" style={{ width: '22px', height: '22px', display: 'block' }} />
           </button>

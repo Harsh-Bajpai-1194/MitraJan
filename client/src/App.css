@@ -1,3 +1,34 @@
+:root {
+  --input-bg: #ffffff;
+  --message-bg-own: #dcf8c6;
+  --message-bg-other: #ffffff;
+  --body-bg: #f4f7f6;
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --text-muted: #666666;
+  --header-bg: #f8f9fa;
+  --border-color: #eeeeee;
+  --border-dark: #cccccc;
+  --btn-bg: #ffffff;
+  --btn-border: #cbd5e1;
+  --btn-hover: #f1f5f9;
+}
+.dark-mode {
+  --input-bg: #2a2a2a;
+  --message-bg-own: #124016;
+  --message-bg-other: #2a2a2a;
+  --body-bg: #121212;
+  --bg-color: #1e1e1e;
+  --text-color: #e5e5e5;
+  --text-muted: #a0a0a0;
+  --header-bg: #2a2a2a;
+  --border-color: #333333;
+  --border-dark: #555555;
+  --btn-bg: #2a2a2a;
+  --btn-border: #444444;
+  --btn-hover: #3a3a3a;
+}
+
 /* General App styles */
 * {
   box-sizing: border-box;
@@ -7,8 +38,8 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
     Arial, sans-serif;
-  background-color: #f4f7f6;
-  color: #333;
+  background-color: var(--body-bg);
+  color: var(--text-color);
 }
 
 /* Login/Join Room Screen */
@@ -24,7 +55,7 @@ body {
 
 
 .login-form {
-  background: white;
+  background: var(--bg-color);
   padding: 30px;
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
@@ -73,7 +104,7 @@ body {
   width: 100%;
   padding: 10px;
   margin-bottom: 15px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-dark);
   border-radius: 4px;
 }
 
@@ -120,8 +151,8 @@ button:active {
 }
 
 .btn-secondary {
-  background-color: #e9ecef;
-  color: #333;
+  background-color: var(--btn-hover);
+  color: var(--text-color);
 }
 
 .btn-success {
@@ -143,7 +174,7 @@ button:active {
   height: 100vh;
   max-width: 800px;
   margin: 0 auto;
-  background: white;
+  background: var(--bg-color);
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -162,8 +193,8 @@ button:active {
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  border-bottom: 1px solid #eee;
-  background-color: #f8f9fa;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--header-bg);
   position: relative;
 }
 
@@ -175,7 +206,7 @@ button:active {
 .chat-header-info p {
   margin: 0;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .chat-header-actions {
@@ -194,8 +225,8 @@ button:active {
 .settings-icon-btn,
 .change-bg-btn,
 .discover-rooms-icon-btn {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
+  background: var(--bg-color);
+  border: 1px solid var(--btn-border);
   border-radius: 8px;
   width: 76px;
   height: 38px;
@@ -225,7 +256,7 @@ button:active {
 .settings-icon-btn:hover,
 .change-bg-btn:hover,
 .discover-rooms-icon-btn:hover {
-  background: #f1f5f9;
+  background: var(--btn-hover);
   border-color: #94a3b8;
   transform: translateY(-1px);
 }
@@ -302,17 +333,17 @@ button:active {
   border-radius: 18px;
   word-wrap: break-word;
   flex-grow: 1;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-color);
 }
 
 .message-item.own-message {
-  background-color: #dcf8c6;
+  background-color: var(--message-bg-own);
   justify-content: flex-start;
 }
 
 .message-item.other-message {
   align-self: flex-start;
-  background-color: #ffffff;
+  background-color: var(--message-bg-other);
 }
 
 .message-wrapper {
@@ -330,7 +361,7 @@ button:active {
 
 .message-item.system {
   background-color: transparent;
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.85rem;
   align-self: center;
   font-style: italic;
@@ -366,15 +397,15 @@ button:active {
 
 .timestamp {
   font-size: 0.75rem;
-  color: #888;
+  color: var(--text-muted);
   margin-left: 8px;
 }
 
 .message-form {
   display: flex;
   padding: 15px;
-  border-top: 1px solid #eee;
-  background-color: white;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-color);
   position: relative;
   align-items: center;
 }
@@ -385,9 +416,11 @@ button:active {
 }
 
 .message-form input {
+  background-color: var(--input-bg);
+  color: var(--text-color);
   flex-grow: 1;
   padding: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-dark);
   border-radius: 4px;
   margin-right: 10px;
   font-size: 1rem;
@@ -431,9 +464,9 @@ button:active {
   top: 8px;
   right: 8px;
   z-index: 1001;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #64748b;
+  background: var(--bg-color);
+  border: 1px solid var(--btn-border);
+  color: var(--text-muted);
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -483,6 +516,8 @@ button:active {
   }
 
   .message-form input {
+  background-color: var(--input-bg);
+  color: var(--text-color);
     margin-right: 0;
     width: auto;
     flex: 1 1 0;
@@ -539,7 +574,7 @@ button:active {
 
 .typing-indicator {
   margin: 6px 12px;
-  color: #666;
+  color: var(--text-muted);
   font-size: 14px;
   font-style: italic;
   min-height: 20px;
@@ -609,7 +644,7 @@ button:active {
 }
 
 .room-card {
-  background: white;
+  background: var(--bg-color);
   border-radius: 10px;
   padding: 14px;
   box-shadow: 0 6px 12px rgba(0,0,0,0.06);
@@ -635,7 +670,7 @@ button:active {
 
 .room-desc {
   margin: 0;
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -653,14 +688,14 @@ button:active {
 
 /* Settings Modal Card */
 .settings-modal-card {
-  background: #ffffff;
+  background: var(--bg-color);
   border-radius: 16px;
   width: 90%;
   max-width: 440px;
   padding: 24px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   animation: popup-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
 }
 
 .settings-modal-header {
@@ -682,11 +717,11 @@ button:active {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-color);
 }
 
 .settings-close-btn {
-  background: #f1f5f9;
+  background: var(--btn-hover);
   border: none;
   width: 32px;
   height: 32px;
@@ -696,13 +731,13 @@ button:active {
   justify-content: center;
   cursor: pointer;
   font-size: 1rem;
-  color: #64748b;
+  color: var(--text-muted);
   transition: all 0.2s ease;
 }
 
 .settings-close-btn:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--btn-hover);
+  color: var(--text-color);
 }
 
 .settings-modal-body {
@@ -716,8 +751,8 @@ button:active {
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   gap: 12px;
 }
@@ -731,12 +766,12 @@ button:active {
 .settings-label {
   font-weight: 600;
   font-size: 0.95rem;
-  color: #1e293b;
+  color: var(--text-color);
 }
 
 .settings-desc {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .toggle-switch-btn {
@@ -777,7 +812,7 @@ button:active {
 .toggle-thumb {
   width: 24px;
   height: 24px;
-  background-color: #ffffff;
+  background-color: var(--message-bg-other);
   border-radius: 50%;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.1);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -828,8 +863,8 @@ button:active {
 .music-player-bar {
   display: flex;
   align-items: center;
-  background: rgba(241, 245, 249, 0.95);
-  border: 1px solid #cbd5e1;
+  background: var(--btn-hover);
+  border: 1px solid var(--btn-border);
   padding: 3px 8px;
   border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -874,7 +909,7 @@ button:active {
 
 .music-song-title {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text-color);
   white-space: nowrap;
 }
 
@@ -885,4 +920,23 @@ button:active {
   100% {
     transform: translateX(-50%);
   }
+}
+
+.theme-toggle-btn {
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.2rem;
+}
+.theme-toggle-btn:hover {
+  background: var(--btn-hover);
+  transform: translateY(-1px);
 }

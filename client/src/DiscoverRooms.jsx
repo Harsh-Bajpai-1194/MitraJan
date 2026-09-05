@@ -12,7 +12,9 @@ const DiscoverRooms = ({
   onViewMembers,
   isAdmin,
   onOpenAdmin,
-  toggleBackgroundPicker
+  toggleBackgroundPicker,
+  theme,
+  setTheme
 }) => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -140,8 +142,14 @@ const DiscoverRooms = ({
     return gradients[index];
   };
 
+  const toggleTheme = () => {
+    if (setTheme) {
+      setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    }
+  };
+
   return (
-    <div className="discover-rooms-page">
+    <div className={`discover-rooms-page ${theme === 'dark' ? 'dark-mode' : ''}`}>
       
       {/* Full Page Header Navbar */}
       <header className="discover-navbar">
@@ -151,6 +159,9 @@ const DiscoverRooms = ({
           </div>
 
           <div className="navbar-actions">
+            <button className="theme-toggle-btn" onClick={toggleTheme} title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"} style={{ marginRight: '10px' }}>
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
             {/* Close / Go Back Button */}
             <button onClick={onClose} className="close-btn" title="Close & Go Back" aria-label="Close">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
