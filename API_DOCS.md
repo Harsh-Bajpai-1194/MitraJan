@@ -7,50 +7,72 @@
 
 ## 📑 Table of Contents
 
-- [Overview & Architecture](#-overview--architecture)
-  - [Server Environments & Ports](#server-environments--ports)
-  - [Dual-Layer Storage Architecture](#dual-layer-storage-architecture)
-  - [Global Headers & Security](#global-headers--security)
-- [Data Models & Schemas](#-data-models--schemas)
-  - [Message Schema](#message-schema)
-  - [Room Schema](#room-schema)
-  - [User Identity Model](#user-identity-model)
-- [REST API Reference](#-rest-api-reference)
-  - [Authentication](#authentication)
-    - [`POST /api/auth/google`](#post-apiauthgoogle)
-  - [Rooms & Statistics](#rooms--statistics)
-    - [`GET /api/rooms`](#get-apirooms)
-    - [`GET /api/rooms/:roomName/participants`](#get-apiroomsroomnameparticipants)
-    - [`GET /api/rooms/:roomName/members`](#get-apiroomsroomnamemembers)
-  - [Media & Assets](#media--assets)
-    - [`GET /api/folder-songs`](#get-apifolder-songs)
-- [Socket.IO Real-Time Event Contracts](#-socketio-real-time-event-contracts)
-  - [Connection & Handshake](#connection--handshake)
-  - [Event Summary Matrix](#event-summary-matrix)
-  - [Event Naming & Legacy Alias Guide](#event-naming--legacy-alias-guide)
-  - [Client-to-Server (C2S) Events](#client-to-server-c2s-events)
-    - [`set username`](#1-set-username)
-    - [`join room`](#2-join-room)
-    - [`chat message`](#3-chat-message)
-    - [`typing`](#4-typing)
-    - [`fetch older messages`](#5-fetch-older-messages)
-    - [`leave room`](#6-leave-room)
-    - [`delete message`](#7-delete-message)
-    - [`disconnect`](#8-disconnect)
-  - [Server-to-Client (S2C) Events](#server-to-client-s2c-events)
-    - [`chat message`](#1-chat-message-broadcast)
-    - [`system message`](#2-system-message)
-    - [`chat history`](#3-chat-history)
-    - [`older messages`](#4-older-messages)
-    - [`typing`](#5-typing-broadcast)
-    - [`rooms updated`](#6-rooms-updated)
-    - [`message deleted`](#7-message-deleted)
-- [Real-Time Sequence Workflows](#-real-time-sequence-workflows)
-  - [1. User Connection & Room Joining](#1-user-connection--room-joining)
-  - [2. Sending Messages & Profanity Filtering](#2-sending-messages--profanity-filtering)
-  - [3. Pagination / Fetching Older Messages](#3-pagination--fetching-older-messages)
-  - [4. Admin Message Deletion](#4-admin-message-deletion)
-- [Quickstart Client Integration Example](#-quickstart-client-integration-example)
+- [📡 MitraJan — API \& WebSocket Event Specification](#-mitrajan--api--websocket-event-specification)
+  - [📑 Table of Contents](#-table-of-contents)
+  - [🌐 Overview \& Architecture](#-overview--architecture)
+    - [Server Environments \& Ports](#server-environments--ports)
+    - [Dual-Layer Storage Architecture](#dual-layer-storage-architecture)
+    - [Global Headers \& Security](#global-headers--security)
+  - [📦 Data Models \& Schemas](#-data-models--schemas)
+    - [Message Schema](#message-schema)
+    - [Room Schema](#room-schema)
+    - [User Identity Model](#user-identity-model)
+  - [🚀 REST API Reference](#-rest-api-reference)
+    - [Authentication](#authentication)
+      - [`POST /api/auth/google`](#post-apiauthgoogle)
+        - [Request](#request)
+        - [Responses](#responses)
+        - [Example cURL](#example-curl)
+    - [Rooms \& Statistics](#rooms--statistics)
+      - [`GET /api/rooms`](#get-apirooms)
+        - [Request](#request-1)
+        - [Responses](#responses-1)
+        - [Example cURL](#example-curl-1)
+      - [`GET /api/rooms/:roomName/participants`](#get-apiroomsroomnameparticipants)
+        - [Request](#request-2)
+        - [Responses](#responses-2)
+        - [Example cURL](#example-curl-2)
+      - [`GET /api/rooms/:roomName/members`](#get-apiroomsroomnamemembers)
+        - [Request](#request-3)
+        - [Responses](#responses-3)
+        - [Example cURL](#example-curl-3)
+    - [Media \& Assets](#media--assets)
+      - [`GET /api/folder-songs`](#get-apifolder-songs)
+        - [Request](#request-4)
+        - [Responses](#responses-4)
+        - [Example cURL](#example-curl-4)
+  - [⚡ Socket.IO Real-Time Event Contracts](#-socketio-real-time-event-contracts)
+    - [Connection \& Handshake](#connection--handshake)
+    - [Event Summary Matrix](#event-summary-matrix)
+    - [Event Naming \& Legacy Alias Guide](#event-naming--legacy-alias-guide)
+    - [Client-to-Server (C2S) Events](#client-to-server-c2s-events)
+      - [1. `set username`](#1-set-username)
+      - [2. `join room`](#2-join-room)
+        - [Server Side Actions:](#server-side-actions)
+      - [3. `chat message`](#3-chat-message)
+        - [Server Side Actions:](#server-side-actions-1)
+      - [4. `typing`](#4-typing)
+      - [5. `fetch older messages`](#5-fetch-older-messages)
+      - [6. `leave room`](#6-leave-room)
+        - [Server Side Actions:](#server-side-actions-2)
+      - [7. `delete message`](#7-delete-message)
+        - [Server Side Responses:](#server-side-responses)
+      - [8. `disconnect`](#8-disconnect)
+    - [Server-to-Client (S2C) Events](#server-to-client-s2c-events)
+      - [1. `chat message` (Broadcast)](#1-chat-message-broadcast)
+      - [2. `system message`](#2-system-message)
+      - [3. `chat history`](#3-chat-history)
+      - [4. `older messages`](#4-older-messages)
+      - [5. `typing` (Broadcast)](#5-typing-broadcast)
+      - [6. `rooms updated`](#6-rooms-updated)
+      - [7. `message deleted`](#7-message-deleted)
+  - [🔄 Real-Time Sequence Workflows](#-real-time-sequence-workflows)
+    - [1. User Connection \& Room Joining](#1-user-connection--room-joining)
+    - [2. Sending Messages \& Profanity Filtering](#2-sending-messages--profanity-filtering)
+    - [3. Pagination / Fetching Older Messages](#3-pagination--fetching-older-messages)
+    - [4. Admin Message Deletion](#4-admin-message-deletion)
+  - [💻 Quickstart Client Integration Example](#-quickstart-client-integration-example)
+  - [🛠️ Contributing \& Support](#️-contributing--support)
 
 ---
 
@@ -88,8 +110,8 @@ flowchart LR
 
 | Property | Default Value | Environment Variable | Notes |
 | :--- | :--- | :--- | :--- |
-| **HTTP Base URL** | `http://localhost:7777` | `PORT` | Set in `.env` (defaults to `3000` or `7777`) |
-| **WebSocket URL** | `ws://localhost:7777` | `PORT` | Uses the same port as HTTP server |
+| **HTTP Base URL** | `http://localhost:3000` | `PORT` | Set in `.env` (defaults to `3000` or `7777`) |
+| **WebSocket URL** | `http://localhost:3000` | `PORT` | Uses the same port as HTTP server |
 | **Socket.IO Path** | `/socket.io/` | Built-in default | Default Socket.IO client path |
 | **CORS Origin** | `*` (Any origin in dev) | `CORS_ORIGIN` | Set to specific client domain in production |
 
@@ -105,7 +127,7 @@ flowchart LR
 
 All REST responses include the following security and CORS configurations:
 - `Cross-Origin-Opener-Policy: same-origin-allow-popups` (Required for Google Identity OAuth popup flows)
-- `Access-Control-Allow-Origin: *` (or configured `CORS_ORIGIN`)
+- `Access-Control-Allow-Origin: *` (REST API allows all origins by default; `CORS_ORIGIN` env variable configures Socket.IO)
 - Automatic HTML escaping via `escapeHtml()` on incoming chat messages to eliminate Cross-Site Scripting (XSS).
 - Profanity filtering via `bad-words` dictionary on message bodies and room names.
 
@@ -117,15 +139,15 @@ All REST responses include the following security and CORS configurations:
 
 Mongoose Model: `Message` (`server/models/Message.js`)
 
-| Field | Type | Required | Default | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `_id` | `ObjectId` / `String` | Yes | Auto-generated | Unique identifier for the message |
-| `username` | `String` | Yes | `'Anonymous'` | Display name of author |
-| `email` | `String` | No | `''` | Author email (from Google OAuth or guest session) |
-| `picture` | `String` | No | `''` | Avatar image URL |
-| `text` | `String` | Yes | — | Sanitized HTML content of the message |
-| `room` | `String` | Yes | — | Target room name (trimmed, case-preserved) |
-| `timestamp` | `Date` / `ISO 8601` | Yes | `Date.now` | Creation timestamp |
+| Field | Type | Required (DB) | Default (DB) | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `_id` | `ObjectId` (MongoDB) / `string` (in-memory) | Yes | Auto-generated | Unique identifier for the message |
+| `username` | `String` | No | — | Display name of author (server assigns `'Anonymous'` when unset) |
+| `email` | `String` | No | — | Author email (from Google OAuth or guest session) |
+| `picture` | `String` | No | — | Avatar image URL |
+| `text` | `String` | No | — | Message body (server rejects empty/whitespace-only messages) |
+| `room` | `String` | No | — | Target room name (server rejects missing room) |
+| `timestamp` | `Date` / `ISO 8601` | No | `Date.now` | Creation timestamp |
 
 ```json
 {
@@ -222,7 +244,7 @@ Verifies a Google OAuth 2.0 ID token issued by the client-side Google Sign-In SD
 ##### Example cURL
 
 ```bash
-curl -X POST http://localhost:7777/api/auth/google \
+curl -X POST http://localhost:3000/api/auth/google \
   -H "Content-Type: application/json" \
   -d '{"token": "<GOOGLE_ID_TOKEN>"}'
 ```
@@ -276,7 +298,7 @@ Retrieves all available chat rooms along with aggregated live metrics (total mes
 ##### Example cURL
 
 ```bash
-curl -X GET http://localhost:7777/api/rooms
+curl -X GET http://localhost:3000/api/rooms
 ```
 
 ---
@@ -318,7 +340,7 @@ Returns the currently **active online participants** connected to the specified 
 ##### Example cURL
 
 ```bash
-curl -X GET "http://localhost:7777/api/rooms/Tech%20Talk/participants"
+curl -X GET "http://localhost:3000/api/rooms/Tech%20Talk/participants"
 ```
 
 ---
@@ -339,7 +361,7 @@ Returns all **historical members** who have posted messages in the specified roo
 
 ##### Responses
 
-- **`200 OK`**: Array of member profiles (sorted by username when MongoDB is available; otherwise order is not guaranteed).
+- **`200 OK`**: Array of member profiles (alphabetically sorted when connected to MongoDB; unsorted in in-memory fallback mode).
 
 ```json
 [
@@ -359,7 +381,7 @@ Returns all **historical members** who have posted messages in the specified roo
 ##### Example cURL
 
 ```bash
-curl -X GET "http://localhost:7777/api/rooms/Tech%20Talk/members"
+curl -X GET "http://localhost:3000/api/rooms/Tech%20Talk/members"
 ```
 
 ---
@@ -393,7 +415,7 @@ Returns a list of streaming audio URLs for the in-app background music player. I
 ##### Example cURL
 
 ```bash
-curl -X GET http://localhost:7777/api/folder-songs
+curl -X GET http://localhost:3000/api/folder-songs
 ```
 
 ---
@@ -407,7 +429,7 @@ MitraJan utilizes **Socket.IO** for bi-directional event-driven messaging.
 ```javascript
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:7777", {
+const socket = io("http://localhost:3000", {
   transports: ["websocket", "polling"],
   reconnection: true,
   reconnectionAttempts: 5,
@@ -466,9 +488,9 @@ Binds display information and authentication credentials to the current socket s
 | Param | Type | Required | Default | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `name` | `string` | **Yes** | `'Anonymous'` | User display name |
-| `room` | `string` | No | — | Optional initial room name |
-| `email` | `string` | No | `''` | User email address (used for admin validation & avatar mapping) |
-| `picture` | `string` | No | `''` | Avatar image URL |
+ | `room` | `string` | No | — | Currently ignored by the server (reserved/legacy positional param) |
+ | `email` | `string` | No | — | User email address (used for admin validation & avatar mapping) |
+ | `picture` | `string` | No | — | Avatar image URL |
 
 ```javascript
 // Client Example
@@ -736,7 +758,7 @@ sequenceDiagram
     participant Srv as MitraJan Server
     participant DB as MongoDB Atlas
 
-    User->>Srv: Connect WebSocket (ws://localhost:7777)
+    User->>Srv: Connect WebSocket (http://localhost:3000)
     Srv-->>User: Connection Established (socket.id)
     User->>Srv: emit('set username', 'Alex', 'Tech Talk', 'alex@gmail.com')
     User->>Srv: emit('join room', 'Tech Talk')
@@ -829,7 +851,7 @@ The following standalone Node.js or browser snippet illustrates how to connect, 
 import { io } from "socket.io-client";
 
 // 1. Establish connection to MitraJan server
-const socket = io("http://localhost:7777", {
+const socket = io("http://localhost:3000", {
   transports: ["websocket", "polling"]
 });
 
