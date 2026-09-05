@@ -47,9 +47,9 @@ const GoogleSignIn = ({ onSignIn }) => {
     if (showMockLogin) {
         const handleMockSignIn = () => {
             onSignIn({
-                name: 'Mock Admin',
-                email: 'mockadmin@example.com', // Safe placeholder, non-personal
-                picture: 'https://i.pravatar.cc/150?u=mockadmin'
+                name: process.env.REACT_APP_MOCK_ADMIN_NAME || 'Mock Admin',
+                email: process.env.REACT_APP_MOCK_ADMIN_EMAIL || 'admin@example.com',
+                picture: process.env.REACT_APP_MOCK_ADMIN_PICTURE || 'https://i.pravatar.cc/150?u=mockadmin'
             });
         };
 
