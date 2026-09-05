@@ -339,7 +339,7 @@ Returns all **historical members** who have posted messages in the specified roo
 
 ##### Responses
 
-- **`200 OK`**: Alphabetically sorted array of member profiles.
+- **`200 OK`**: Array of member profiles (sorted by username when MongoDB is available; otherwise order is not guaranteed).
 
 ```json
 [
