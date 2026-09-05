@@ -6,7 +6,6 @@ const GoogleSignIn = ({ onSignIn }) => {
         try {
             const token = credentialResponse.credential;
 
-            // Send Google JWT to backend to verify signature cryptographically
             const response = await fetch('/api/auth/google', {
                 method: 'POST',
                 headers: {
@@ -15,33 +14,42 @@ const GoogleSignIn = ({ onSignIn }) => {
                 body: JSON.stringify({ token }),
             });
 
-            const data = await response.json();
+            // Guard against HTML error pages / non-JSON responses from proxies or crashes
+            const contentType = response.headers.get('content-type');
+            let data = null;
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            }
 
-            // Only log in if the backend confirms valid Google credentials
-            if (data.success && data.user) {
+            // Distinguish server/network errors (5xx/4xx) from invalid tokens
+            if (!response.ok) {
+                const errorMsg = data?.message || `Server responded with HTTP ${response.status}`;
+                console.error('Authentication request failed:', errorMsg);
+                alert(`Authentication error: ${errorMsg}`);
+                return;
+            }
+
+            if (data?.success && data?.user) {
                 onSignIn(data.user);
             } else {
-                console.error('Backend Google Auth Failed:', data.message);
+                console.error('Backend Google Auth Failed:', data?.message);
                 alert('Authentication failed: Invalid Google token.');
             }
         } catch (error) {
-            console.error('Error contacting authentication backend:', error);
-            alert('Unable to contact authentication server. Please try again.');
+            console.error('Network or parsing error contacting authentication backend:', error);
+            alert('Unable to contact authentication server. Please check your connection.');
         }
     };
 
-    const isDev = process.env.NODE_ENV !== 'production' || 
-        window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1' || 
-        window.location.hostname.includes('dev');
+    // Strictly gate mock login behind an explicit environment variable that defaults to off
+    const showMockLogin = process.env.REACT_APP_ENABLE_MOCK_LOGIN === 'true';
 
-    // Add a mock login for development/local testing to make testing easier
-    if (isDev) {
+    if (showMockLogin) {
         const handleMockSignIn = () => {
             onSignIn({
                 name: 'Mock Admin',
-                email: 'harshbajpai1194@gmail.com',
-                picture: 'https://i.pravatar.cc/150?u=mockadmin' 
+                email: 'mockadmin@example.com', // Safe placeholder, non-personal
+                picture: 'https://i.pravatar.cc/150?u=mockadmin'
             });
         };
 
@@ -51,7 +59,7 @@ const GoogleSignIn = ({ onSignIn }) => {
                     onSuccess={handleSuccess}
                     onError={() => console.log('Google Login Failed')}
                 />
-                <button onClick={handleMockSignIn} className="btn-secondary" style={{padding: '8px 12px'}}>
+                <button onClick={handleMockSignIn} className="btn-secondary" style={{ padding: '8px 12px' }}>
                     Sign In as Mock Admin
                 </button>
             </div>
