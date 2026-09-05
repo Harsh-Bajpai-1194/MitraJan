@@ -56,7 +56,7 @@ const ParticipantsPage = ({ roomName, onClose, theme, setTheme }) => {
     <div className={`members-page ${theme === 'dark' ? 'dark-mode' : ''}`}>
       <header className="members-header">
         <h2>All Members in "{roomName}" {!loading && `(${members.length})`}</h2>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ position: 'absolute', top: '16px', right: '24px', display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button className="theme-toggle-btn" onClick={toggleTheme} title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}>
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>

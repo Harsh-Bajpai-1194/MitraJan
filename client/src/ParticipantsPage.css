@@ -22,9 +22,9 @@
 }
 
 .close-btn {
-  position: absolute;
-  top: 16px;
-  right: 24px;
+  /* position: absolute; */
+  /* top: 16px; */
+  /* right: 24px; */
   background: var(--btn-hover);
   border: 1px solid #dee2e6;
   border-radius: 6px;
