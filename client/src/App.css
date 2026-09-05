@@ -353,6 +353,43 @@ button:active {
   gap: 5px;
 }
 
+.edit-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.edit-container input {
+  min-width: 0;
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+}
+
+.edit-container button,
+.edit-btn {
+  padding: 4px 8px;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.edit-container button:hover,
+.edit-btn:hover {
+  background: #e2e8f0;
+}
+
+.edited-label {
+  margin-left: 6px;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
 .message-header {
   display: flex;
   align-items: center;

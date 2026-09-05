@@ -248,7 +248,12 @@ const escapeRegex = (string) => {
 
 const saveMessageToStore = async (messageData) => {
     const room = (messageData.room || '').trim();
-    const normalizedData = { ...messageData, room, timestamp: messageData.timestamp || new Date() };
+    const normalizedData = {
+        ...messageData,
+        room,
+        timestamp: messageData.timestamp || new Date(),
+        _id: messageData._id || new mongoose.Types.ObjectId().toString()
+    };
     const messages = roomMessages.get(room) || [];
     messages.push(normalizedData);
     if (messages.length > 250) {
@@ -266,7 +271,7 @@ const saveMessageToStore = async (messageData) => {
         }
     }
 
-    return { ...normalizedData, _id: new mongoose.Types.ObjectId().toString() };
+    return normalizedData;
 };
 
 const getRoomHistory = async (room) => {
@@ -667,6 +672,48 @@ io.on('connection', (socket) => {
             roomMessages.set(room, updated);
             io.to(room).emit('message deleted', messageId);
         }
+    });
+
+    socket.on('edit_message', async ({ messageId, text, room }) => {
+        const normalizedRoom = (room || '').trim();
+        const trimmedText = (text || '').trim();
+        if (!messageId || !normalizedRoom || !trimmedText) return;
+
+        const profanityCheckText = trimmedText.replace(/[^a-zA-Z0-9]/g, '');
+        if (filter.isProfane(profanityCheckText)) {
+            return socket.emit('system message', 'Your edited message was blocked for containing inappropriate language.');
+        }
+
+        const sanitizedText = escapeHtml(trimmedText);
+        let editedMessage = null;
+        if (isMongoAvailable()) {
+            try {
+                const message = await Message.findOne({ _id: messageId, room: normalizedRoom });
+                if (!message) return;
+                if (message.email !== (socket.email || '') && message.username !== socket.username) {
+                    return socket.emit('system message', 'You are not authorized to edit this message.');
+                }
+                message.text = sanitizedText;
+                message.edited = true;
+                editedMessage = await message.save();
+                editedMessage = editedMessage.toObject();
+            } catch (error) {
+                console.error('Error editing message:', error.message);
+                return socket.emit('system message', 'Error editing message.');
+            }
+        } else {
+            const messages = roomMessages.get(normalizedRoom) || [];
+            const message = messages.find((item) => String(item._id) === String(messageId));
+            if (!message) return;
+            if (message.email !== (socket.email || '') && message.username !== socket.username) {
+                return socket.emit('system message', 'You are not authorized to edit this message.');
+            }
+            message.text = sanitizedText;
+            message.edited = true;
+            editedMessage = { ...message };
+        }
+
+        io.to(normalizedRoom).emit('message edited', editedMessage);
     });
     // Handle disconnect
     socket.on('disconnect', () => {

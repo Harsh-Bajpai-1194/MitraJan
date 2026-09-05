@@ -6,8 +6,11 @@ const messageSchema = new mongoose.Schema({
     picture: String,
     text: String,
     room: String,
+    edited: { type: Boolean, default: false },
     timestamp: { type: Date, default: Date.now }
+    
 });
+
 
 const Message = mongoose.model('Message', messageSchema);
 

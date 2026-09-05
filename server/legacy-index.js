@@ -33,6 +33,20 @@ app.get('/', (req, res) => {
 // --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {
   console.log(`User Connected: ${socket.id}`);
+ socket.on('edit_message', async (data) => {
+      try {
+        const { messageId, text, room } = data;
+        
+        
+        await Message.findByIdAndUpdate(messageId, { text: text });
+
+      
+        socket.to(room).emit('receive_message', data);
+      } catch (error) {
+        console.error('Failed to update or broadcast edited message:', error);
+      }
+    });
+
 
   socket.on('send_message', async (data) => {
     // Save message to MongoDB

@@ -109,7 +109,23 @@ function App() {
   const scrollHeightBeforeUpdate = useRef(null);
   const skipScrollToBottomRef = useRef(false);
   const prevMessagesCountRef = useRef(0);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editInputText, setEditInputText] = useState("");
 
+  const startEditing = (msg) => {
+    setEditingMessageId(msg._id || msg.id);
+    setEditInputText(msg.text);
+  };
+  const handleSaveEdit = (messageId) => {
+    const trimmedText = editInputText.trim();
+    if (!trimmedText || !socketRef.current?.connected) return;
+    socketRef.current.emit('edit_message', {
+      messageId,
+      text: trimmedText,
+      room
+    });
+    setEditingMessageId(null);
+  };
   // User Settings: Enter is Send & Spam Protection
   const [enterIsSend, setEnterIsSend] = useState(() => {
     const saved = localStorage.getItem('setting_enterIsSend');
@@ -294,6 +310,14 @@ function App() {
         setTimeout(() => scrollToBottom(true), 150);
       }
     };
+    const handleEditMessage = (editedMessage) => {
+      setMessages((prevMessages) => prevMessages.map((msg) => {
+        const messageId = String(msg._id || msg.id);
+        return messageId === String(editedMessage._id || editedMessage.id)
+          ? { ...msg, ...editedMessage, edited: true, time: getFormattedTime(editedMessage.timestamp || msg.timestamp) }
+          : msg;
+      }));
+    };
     const handleOlderMessages = (olderMessages, roomName) => {
       const currentRoom = (roomRef.current || '').trim().toLowerCase();
       const historyRoom = (roomName || '').trim().toLowerCase();
@@ -325,6 +349,7 @@ function App() {
     newSocket.on('older messages', handleOlderMessages);
     newSocket.on('rooms updated', handleRoomsUpdated);
     newSocket.on('message deleted', handleMessageDeleted);
+    newSocket.on('message edited', handleEditMessage);
     if (newSocket.connected) {
       handleConnect();
     }
@@ -345,6 +370,7 @@ function App() {
       newSocket.off('older messages', handleOlderMessages);
       newSocket.off("typing");
       newSocket.off('message deleted', handleMessageDeleted);
+      newSocket.off('message edited', handleEditMessage);
       newSocket.off('rooms updated', handleRoomsUpdated);
       newSocket.disconnect();
       socketRef.current = null;
@@ -701,6 +727,12 @@ function App() {
             isFetchingOlderMessages={isFetchingOlderMessages}
             messages={messages}
             handleDeleteMessage={handleDeleteMessage}
+            editingMessageId={editingMessageId}
+            editInputText={editInputText}
+            setEditInputText={setEditInputText}
+            startEditing={startEditing}
+            handleSaveEdit={handleSaveEdit}
+            setEditingMessageId={setEditingMessageId}
             messagesEndRef={messagesEndRef}
             typingUser={typingUser}
             sendMessage={sendMessage}
@@ -841,6 +873,12 @@ function ChatRoomRoute({
   isFetchingOlderMessages,
   messages,
   handleDeleteMessage,
+  editingMessageId,
+  editInputText,
+  setEditInputText,
+  startEditing,
+  handleSaveEdit,
+  setEditingMessageId,
   messagesEndRef,
   typingUser,
   sendMessage,
@@ -1065,8 +1103,33 @@ function ChatRoomRoute({
                       <span className="username" style={{ color: getUserColor(msg.username), fontWeight: 600 }}>{msg.username}</span>
                       <span className="timestamp">{msg.time}</span>
                     </div>
-                    <span className="text">{msg.text}</span>
+                   
+                    {editingMessageId === (msg._id || msg.id) ? (
+                      <div className="edit-container">
+                        <input
+                          type="text"
+                          value={editInputText}
+                          onChange={(e) => setEditInputText(e.target.value)}
+                          aria-label="Edit message"
+                          autoFocus
+                        />
+                        <button type="button" onClick={() => handleSaveEdit(msg._id || msg.id)}>Save</button>
+                        <button type="button" onClick={() => setEditingMessageId(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text">{msg.text}</span>
+                        {msg.edited && <span className="edited-label">(edited)</span>}
+                        {isOwnMessage && (
+                          <button type="button" onClick={() => startEditing(msg)} className="edit-btn" title="Edit message">
+                            Edit
+                          </button>
+                        )}
+                      </>
+                    )}
+                   
                   </div>
+                  
                 </div>
                 {(isAdmin || isOwnMessage) && (
                   <button onClick={() => handleDeleteMessage(msg._id)} className="delete-btn" title="Delete message" aria-label="Delete message">
