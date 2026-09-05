@@ -392,12 +392,12 @@
 .room-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08);
-  border-color: #cbd5e1;
+  border-color: var(--btn-border);
 }
 
 .room-card.trending-card {
   border: 1.5px solid #818cf8;
-  background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
+  background: var(--bg-color);
 }
 
 .room-card-header {
