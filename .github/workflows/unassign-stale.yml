@@ -11,7 +11,7 @@ jobs:
   unassign-stale:
     permissions:
       issues: write
-
+      pull-requests: read # Required to read the PR nodes in GraphQL
     runs-on: ubuntu-latest
     steps:
       - name: Check and unassign stale issues
@@ -33,7 +33,7 @@ jobs:
               // Skip if it's actually a Pull Request or if nobody is assigned
               if (issue.pull_request || !issue.assignees || issue.assignees.length === 0) continue;
               
-              // 2. Fetch the activity history (events) for this specific issue (using pagination)
+              // 2. Fetch the REST activity history to find assignment timestamps
               const events = await github.paginate(github.rest.issues.listEvents, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -48,12 +48,66 @@ jobs:
               const lastAssigned = new Date(lastAssignedEvent.created_at);
               const hoursSinceAssigned = (now - lastAssigned) / (1000 * 60 * 60);
               
-              // 4. Check if the user linked a Pull Request AFTER they were assigned
-              // GitHub automatically creates a 'cross-referenced' event when a PR mentions an issue
-              const hasPRLinked = events.some(e => (e.event === 'cross-referenced' || e.event === 'connected') && new Date(e.created_at) > lastAssigned);
+              // If it hasn't been 24 hours yet, skip to the next issue to save API quota
+              if (hoursSinceAssigned < STALE_HOURS) continue;
+              
+              // 4. Use GraphQL to robustly check for linked Pull Requests
+              // This natively captures PRs linked via the GitHub UI sidebar (ConnectedEvent)
+              const query = `
+                query($owner: String!, $repo: String!, $issue_number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issue_number) {
+                      timelineItems(itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT], last: 50) {
+                        nodes {
+                          __typename
+                          ... on CrossReferencedEvent {
+                            createdAt
+                            source {
+                              ... on PullRequest {
+                                number
+                              }
+                            }
+                          }
+                          ... on ConnectedEvent {
+                            createdAt
+                            source {
+                              ... on PullRequest {
+                                number
+                              }
+                            }
+                            subject {
+                              ... on PullRequest {
+                                number
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              const result = await github.graphql(query, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number
+              });
+              
+              const timelineNodes = result.repository.issue.timelineItems.nodes;
+              
+              // Check if a PR was linked AFTER the user was assigned
+              const hasPRLinked = timelineNodes.some(node => {
+                const eventDate = new Date(node.createdAt);
+                if (eventDate > lastAssigned) {
+                  if (node.__typename === 'CrossReferencedEvent' && node.source && node.source.number) return true;
+                  if (node.__typename === 'ConnectedEvent' && ((node.source && node.source.number) || (node.subject && node.subject.number))) return true;
+                }
+                return false;
+              });
               
               // 5. If 24 hours have passed AND no PR is linked, remove them!
-              if (hoursSinceAssigned >= STALE_HOURS && !hasPRLinked) {
+              if (!hasPRLinked) {
                 const assigneesToRemove = issue.assignees.map(a => a.login);
                 
                 // Unassign the users
@@ -69,7 +123,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issue.number,
-                  body: `⏳ **Time's up!** It has been over 24 hours since this issue was claimed, and no Pull Request has been linked.\n\nI am automatically unassigning this issue so others in the CodeX Club can have a chance to work on it! If you're still working on it, feel free to \`/claim\` it again. 🐍`
+                  body: `⏳ **Time's up!** It has been over 24 hours since this issue was claimed, and no Pull Request has been linked.\n\nI am automatically unassigning this issue so others can have a chance to work on it! If you're still working on it, feel free to \`/claim\` it again. 🐍`
                 });
               }
             }
