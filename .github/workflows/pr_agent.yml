@@ -11,9 +11,10 @@ jobs:
     if: contains(github.event.comment.body, '/review')
     runs-on: ubuntu-latest
     permissions:
-      issues: write
-      pull-requests: write
-      contents: read
+      permissions:
+        issues: write
+        pull-requests: write
+        contents: write 
     name: Run PR Agent
     steps:
       - name: PR Agent action
