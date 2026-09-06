@@ -57,7 +57,6 @@
         - [Server Side Actions:](#server-side-actions-2)
       - [7. `delete message`](#7-delete-message)
         - [Server Side Responses:](#server-side-responses)
-      - [8. `disconnect`](#8-disconnect)
     - [Server-to-Client (S2C) Events](#server-to-client-s2c-events)
       - [1. `chat message` (Broadcast)](#1-chat-message-broadcast)
       - [2. `system message`](#2-system-message)
@@ -66,6 +65,8 @@
       - [5. `typing` (Broadcast)](#5-typing-broadcast)
       - [6. `rooms updated`](#6-rooms-updated)
       - [7. `message deleted`](#7-message-deleted)
+    - [Socket.IO Lifecycle Events](#socketio-lifecycle-events)
+      - [1. `disconnect`](#1-disconnect)
   - [🔄 Real-Time Sequence Workflows](#-real-time-sequence-workflows)
     - [1. User Connection \& Room Joining](#1-user-connection--room-joining)
     - [2. Sending Messages \& Profanity Filtering](#2-sending-messages--profanity-filtering)
@@ -110,7 +111,7 @@ flowchart LR
 
 | Property | Default Value | Environment Variable | Notes |
 | :--- | :--- | :--- | :--- |
-| **HTTP Base URL** | `http://localhost:3000` | `PORT` | Set in `.env` (defaults to `3000` or `7777`) |
+| **HTTP Base URL** | `http://localhost:3000` | `PORT` | Set in `.env` (defaults to `3000`) |
 | **WebSocket URL** | `http://localhost:3000` | `PORT` | Uses the same port as HTTP server |
 | **Socket.IO Path** | `/socket.io/` | Built-in default | Default Socket.IO client path |
 | **CORS Origin** | `*` (Any origin in dev) | `CORS_ORIGIN` | Set to specific client domain in production |
@@ -182,7 +183,7 @@ Users identify themselves either as guest profiles or authenticated Google OAuth
 ```typescript
 interface UserProfile {
   name: string;        // Full display name
-  email: string;       // Verified email address
+  email?: string;      // Optional email address (guest sessions send an empty string)
   picture?: string;    // Avatar URL
 }
 ```
@@ -257,7 +258,7 @@ curl -X POST http://localhost:3000/api/auth/google \
 
 #### `GET /api/rooms`
 
-Retrieves all available chat rooms along with aggregated live metrics (total messages and distinct participants). Rooms are sorted descending by activity (`totalMessages`).
+Retrieves all available chat rooms along with aggregated metrics (total messages and historical count of unique message authors). Rooms are sorted descending by activity (`totalMessages`).
 
 ##### Request
 
@@ -450,7 +451,7 @@ const socket = io("http://localhost:3000", {
 | [`fetch older messages`](#5-fetch-older-messages) | **C2S** | `{ room: string, lastMessageId: string }` | Requests paginated batch of prior messages |
 | [`leave room`](#6-leave-room) | **C2S** | `(roomName: string)` | Leaves socket room channel and alerts room peers |
 | [`delete message`](#7-delete-message) | **C2S** | `(messageId: string, roomName: string)` | Removes message (Requires `ADMIN_EMAIL` authorization) |
-| [`disconnect`](#8-disconnect) | **C2S / Internal** | None | Fired when connection drops or tab closes |
+| [`disconnect`](#socketio-lifecycle-events) | **Lifecycle** | None | Fired when connection drops or tab closes |
 | [`chat message`](#1-chat-message-broadcast) | **S2C** | `MessageObject` | Broadcast of sanitized and persisted message to room peers |
 | [`system message`](#2-system-message) | **S2C** | `string` | System notices (user joined, user left, warnings, errors) |
 | [`chat history`](#3-chat-history) | **S2C** | `(messages: MessageObject[], room: string)` | Emits up to 50 recent messages upon room entry |
@@ -614,15 +615,6 @@ socket.emit('delete message', '664b63e8a4521f52d43e8a11', 'Tech Talk');
 
 ---
 
-#### 8. `disconnect`
-
-Standard Socket.IO lifecycle event fired automatically when network connection drops or user closes tab.
-
-- **Trigger**: Automatic.
-- **Server Side**: Logs user disconnection and frees socket resources.
-
----
-
 ### Server-to-Client (S2C) Events
 
 #### 1. `chat message` (Broadcast)
@@ -744,6 +736,16 @@ socket.on('message deleted', (deletedMessageId) => {
   setMessages(prev => prev.filter(msg => msg._id !== deletedMessageId));
 });
 ```
+
+---
+### Socket.IO Lifecycle Events
+
+#### 1. `disconnect`
+
+Standard Socket.IO lifecycle event fired automatically on both client and server when network connection drops, tab closes, or `socket.disconnect()` is called.
+
+- **Trigger**: Connection drop, tab close, or explicit disconnect.
+- **Server Side**: Logs user disconnection, leaves rooms, and cleans up socket resources.
 
 ---
 
