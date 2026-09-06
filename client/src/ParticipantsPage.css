@@ -1,7 +1,7 @@
 .members-page {
   position: fixed;
   inset: 0;
-  background-color: #fff;
+  background-color: var(--bg-color);
   z-index: 1001; /* Higher than Discover Rooms to appear on top */
   display: flex;
   flex-direction: column;
@@ -12,7 +12,7 @@
   align-items: center;
   position: relative;
   padding: 24px 48px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .members-header h2 {
@@ -22,17 +22,17 @@
 }
 
 .close-btn {
-  position: absolute;
-  top: 16px;
-  right: 24px;
-  background: #f8f9fa;
+  /* position: absolute; */
+  /* top: 16px; */
+  /* right: 24px; */
+  background: var(--btn-hover);
   border: 1px solid #dee2e6;
   border-radius: 6px;
   width: 36px;
   height: 36px;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #495057;
+  color: var(--text-color);
   padding: 0;
   line-height: 1;
   display: flex;
@@ -77,8 +77,8 @@
 }
 
 .guest-title {
-  color: #64748b;
-  border-bottom-color: #cbd5e1;
+  color: var(--text-muted);
+  border-bottom-color: var(--btn-border);
 }
 
 .members-list ul {
@@ -92,15 +92,15 @@
   display: flex;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .guest-badge {
   margin-left: auto;
   font-size: 0.72rem;
   font-weight: 600;
-  background-color: #f1f5f9;
-  color: #64748b;
+  background-color: var(--btn-hover);
+  color: var(--text-muted);
   border: 1px solid #cbd5e1;
   padding: 2px 8px;
   border-radius: 12px;

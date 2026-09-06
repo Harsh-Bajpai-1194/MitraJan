@@ -3,7 +3,7 @@ import './ParticipantsPage.css';
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
 import { getUserColor } from './utils/getUserColor.js';
 
-const ParticipantsPage = ({ roomName, onClose }) => {
+const ParticipantsPage = ({ roomName, onClose, theme, setTheme }) => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,11 +46,22 @@ const ParticipantsPage = ({ roomName, onClose }) => {
     fetchMembers();
   }, [roomName]);
 
+  const toggleTheme = () => {
+    if (setTheme) {
+      setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    }
+  };
+
   return (
-    <div className="members-page">
+    <div className={`members-page ${theme === 'dark' ? 'dark-mode' : ''}`}>
       <header className="members-header">
         <h2>All Members in "{roomName}" {!loading && `(${members.length})`}</h2>
-        <button onClick={onClose} className="close-btn" title="Close">×</button>
+        <div style={{ position: 'absolute', top: '16px', right: '24px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button className="theme-toggle-btn" onClick={toggleTheme} title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+          <button onClick={onClose} className="close-btn" title="Close">×</button>
+        </div>
       </header>
       <main className="members-list">
         {loading && (

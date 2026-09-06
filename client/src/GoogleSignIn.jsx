@@ -1,34 +1,55 @@
 import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
 
 const GoogleSignIn = ({ onSignIn }) => {
-    const handleSuccess = (credentialResponse) => {
+    const handleSuccess = async (credentialResponse) => {
         try {
-            // Decode the JWT token to extract the user's Google info
-            const payload = jwtDecode(credentialResponse.credential);
-            
-            if (payload && payload.name) {
-                onSignIn({ name: payload.name, email: payload.email, picture: payload.picture });
+            const token = credentialResponse.credential;
+
+            const response = await fetch('/api/auth/google', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token }),
+            });
+
+            // Guard against HTML error pages / non-JSON responses from proxies or crashes
+            const contentType = response.headers.get('content-type');
+            let data = null;
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            }
+
+            // Distinguish server/network errors (5xx/4xx) from invalid tokens
+            if (!response.ok) {
+                const errorMsg = data?.message || `Server responded with HTTP ${response.status}`;
+                console.error('Authentication request failed:', errorMsg);
+                alert(`Authentication error: ${errorMsg}`);
+                return;
+            }
+
+            if (data?.success && data?.user) {
+                onSignIn(data.user);
+            } else {
+                console.error('Backend Google Auth Failed:', data?.message);
+                alert('Authentication failed: Invalid Google token.');
             }
         } catch (error) {
-            console.error('Error decoding Google JWT', error);
+            console.error('Network or parsing error contacting authentication backend:', error);
+            alert('Unable to contact authentication server. Please check your connection.');
         }
     };
 
-    const isDev = process.env.NODE_ENV !== 'production' || 
-        window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1' || 
-        window.location.hostname.includes('dev');
+    // Strictly gate mock login behind an explicit environment variable that defaults to off
+    const showMockLogin = process.env.REACT_APP_ENABLE_MOCK_LOGIN === 'true';
 
-    // Add a mock login for development/local testing to make testing easier
-    if (isDev) {
+    if (showMockLogin) {
         const handleMockSignIn = () => {
             onSignIn({
-                name: 'Mock Admin',
-                email: 'harshbajpai1194@gmail.com',
-                // Using a service that provides placeholder avatars
-                picture: 'https://i.pravatar.cc/150?u=mockadmin' 
+                name: process.env.REACT_APP_MOCK_ADMIN_NAME || 'Mock Admin',
+                email: process.env.REACT_APP_MOCK_ADMIN_EMAIL || 'admin@example.com',
+                picture: process.env.REACT_APP_MOCK_ADMIN_PICTURE || 'https://i.pravatar.cc/150?u=mockadmin'
             });
         };
 
@@ -38,7 +59,7 @@ const GoogleSignIn = ({ onSignIn }) => {
                     onSuccess={handleSuccess}
                     onError={() => console.log('Google Login Failed')}
                 />
-                <button onClick={handleMockSignIn} className="btn-secondary" style={{padding: '8px 12px'}}>
+                <button onClick={handleMockSignIn} className="btn-secondary" style={{ padding: '8px 12px' }}>
                     Sign In as Mock Admin
                 </button>
             </div>
