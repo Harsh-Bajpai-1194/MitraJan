@@ -10,7 +10,7 @@ import Admin from './Admin';
 import ParticipantsPage from './ParticipantsPage.jsx';
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
 import { getUserColor } from './utils/getUserColor.js';
-import { FaMusic, FaVolumeMute, FaDoorOpen, FaRandom, FaPlay, FaPause, FaStepForward } from 'react-icons/fa';
+import { FaMusic, FaVolumeMute, FaDoorOpen, FaRandom, FaPlay, FaPause, FaStepForward, FaSearch, FaTime } from 'react-icons/fa';
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const date = new Date(timestamp);
@@ -477,7 +477,12 @@ function App() {
       socket.emit('join room', nextRoom);
       socket.emit('set username', nextUsername, nextRoom, userEmail, userPicture);
     }
-    const sessionData = { name: nextUsername, room: nextRoom, email: userEmail, picture: userPicture };
+    const sessionData = {
+    name: nextUsername,
+    room: nextRoom,
+    email: userEmail,
+    picture: userPicture
+  };
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
     if (userEmail === 'harshbajpai1194@gmail.com') setIsAdmin(true);
     setIsLoggedIn(true);
@@ -895,6 +900,8 @@ function ChatRoomRoute({
   const { roomName } = useParams();
   const decodedRoomName = decodeURIComponent(roomName || '');
   const navigate = useNavigate();
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   useEffect(() => {
     if (decodedRoomName && decodedRoomName !== room) {
       if (isLoggedIn && username) {
@@ -974,9 +981,23 @@ function ChatRoomRoute({
           <button className="discover-rooms-icon-btn" onClick={handleOpenDiscoverRooms} title="Discover Rooms" aria-label="Discover Rooms">
             <FaDoorOpen style={{ fontSize: '1.25rem', color: '#334155', display: 'block' }} />
           </button>
+          <button className="search-toggle-btn" onClick={() => setShowSearch(!showSearch)} title="Search messages"></button>
           <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
         </div>
       </header>
+
+          {showSearch && (
+            <div className="message-search-container">
+              <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search messages or users..."
+              autoFocus
+              />
+            </div>
+          )}
+
       {showBackgroundPicker && (
         <div className="background-picker">
           {backgroundOptions.map((bg) => (
@@ -1078,13 +1099,24 @@ function ChatRoomRoute({
       {isAdmin && showAdminPanel && (
         <Admin socket={socketRef.current} onClose={() => setShowAdminPanel(false)} />
       )}
+
       <main className="chat-messages" ref={messagesContainerRef}>
         {isFetchingOlderMessages && <div className="loading-older-messages" style={{ textAlign: 'center', padding: '10px' }}>Loading...</div>}
-        {messages
+        {messages     
           .filter(msg => {
             if (!msg.room) return true;
             return msg.room.trim().toLowerCase() === (room || '').trim().toLowerCase();
           })
+
+          .filter(msg => {
+            const query = searchQuery.toLowerCase();
+
+            return (
+              msg.text?.toLowerCase().includes(query) ||
+              msg.username?.toLowerCase().includes(query)
+            );
+          })
+
           .sort((a, b) => {
             const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
             const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -1100,6 +1132,7 @@ function ChatRoomRoute({
               );
             }
             const isOwnMessage = msg.username === username;
+
             return (
               <div key={keyVal} className={`message-wrapper ${isOwnMessage ? 'own-message-wrapper' : ''}`}>
                 <div className={`message-item ${isOwnMessage ? 'own-message' : 'other-message'}`}>
