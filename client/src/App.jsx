@@ -10,7 +10,7 @@ import Admin from './Admin';
 import ParticipantsPage from './ParticipantsPage.jsx';
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
 import { getUserColor } from './utils/getUserColor.js';
-import { FaMusic, FaVolumeMute, FaDoorOpen, FaRandom, FaPlay, FaPause, FaStepForward, FaSearch, FaTime } from 'react-icons/fa';
+import { FaMusic, FaVolumeMute, FaDoorOpen, FaRandom, FaPlay, FaPause, FaStepForward, FaSearch, FaClock } from 'react-icons/fa';
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const date = new Date(timestamp);
@@ -979,12 +979,24 @@ function ChatRoomRoute({
             <img src={`${process.env.PUBLIC_URL}/settings.png`} alt="Settings" style={{ width: '22px', height: '22px', display: 'block' }} />
           </button>
           <button className="discover-rooms-icon-btn" onClick={handleOpenDiscoverRooms} title="Discover Rooms" aria-label="Discover Rooms">
-            <FaDoorOpen style={{ fontSize: '1.25rem', color: '#334155', display: 'block' }} />
+            <FaDoorOpen style={{ fontSize: '1.25rem', color: '#334155', display: 'block' }}/>
           </button>
-          <button className="search-toggle-btn" onClick={() => setShowSearch(!showSearch)} title="Search messages"></button>
-          <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
-        </div>
-      </header>
+          
+          
+          <button className="search-toggle-btn" onClick={() => { if (showSearch) { 
+            setSearchQuery("");}
+            setShowSearch(!showSearch);
+           }}
+            title="Search messages"
+            aria-label="Search messages">
+            <FaSearch />
+          </button>
+
+          <button className="btn-danger" onClick={handleLeaveRoom}>
+            Leave Room
+          </button>
+          </div>
+          </header>
 
           {showSearch && (
             <div className="message-search-container">
@@ -993,6 +1005,7 @@ function ChatRoomRoute({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search messages or users..."
+              aria-label="Search messages or users"
               autoFocus
               />
             </div>
