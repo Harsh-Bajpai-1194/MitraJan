@@ -1,0 +1,24 @@
+name: CodiumAI PR-Agent
+
+# Only trigger when a comment is created on a Pull Request
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  pr_agent_job:
+    # This check ensures the workflow only runs if someone explicitly commands it
+    if: contains(github.event.comment.body, '/review')
+    runs-on: ubuntu-latest
+    permissions:
+      permissions:
+        issues: write
+        pull-requests: write
+        contents: write 
+    name: Run PR Agent
+    steps:
+      - name: PR Agent action
+        uses: Codium-ai/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
