@@ -102,6 +102,7 @@ function App() {
   const [selectedBackground, setSelectedBackground] = useState('');
   const [typingUser, setTypingUser] = useState('');
   const [showCreateRoomPopup, setShowCreateRoomPopup] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const [newRoomName, setNewRoomName] = useState('');
   const [pendingRoomSwitch, setPendingRoomSwitch] = useState(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -321,13 +322,21 @@ function App() {
       }
       setIsFetchingOlderMessages(false);
     };
+
     const handleRoomsUpdated = () => {
       setRoomsSignature(Date.now());
     };
+
     const handleMessageDeleted = (messageId) => {
       skipScrollToBottomRef.current = true;
       setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== messageId));
     };
+
+    const handleRoomUsers = (users) => {
+      setOnlineUsers(Array.isArray(users) ? users : []);
+    };
+    newSocket.on('room users', handleRoomUsers);
+
     newSocket.on('connect', handleConnect);
     newSocket.on('chat message', handleChatMessage);
     newSocket.on('system message', handleSystemMessage);
@@ -548,6 +557,7 @@ function App() {
       socketRef.current.emit('delete message', messageId, room);
     }
   };
+
   const handleLeaveRoom = () => {
     if (socketRef.current?.connected && room) {
       socketRef.current.emit('leave room', room);
@@ -558,9 +568,11 @@ function App() {
     setEmail('');
     setPicture('');
     setIsAdmin(false);
+    setOnlineUsers([]); // Clear active users
     localStorage.removeItem('chatSession');
     navigate('/login');
   };
+
   const handleOpenDiscoverRooms = () => {
     navigate('/discover');
   };
@@ -692,6 +704,7 @@ function App() {
             isLoggedIn={isLoggedIn}
             theme={theme}
             setTheme={setTheme}
+            onlineUsers={onlineUsers}
           />
         } />
         <Route path="/chat/:roomName" element={
@@ -702,6 +715,7 @@ function App() {
             username={username}
             email={email}
             picture={picture}
+            onlineUsers={onlineUsers}
             joinChatRoomCallback={joinChatRoomCallback}
             selectedBackground={selectedBackground}
             toggleMusic={toggleMusic}
@@ -817,7 +831,7 @@ function LoginView({ showRoomForm, setShowRoomForm, username, setUsername, handl
     </div>
   );
 }
-function ParticipantsRoute({ room, isLoggedIn, theme, setTheme }) {
+function ParticipantsRoute({ room, isLoggedIn, theme, setTheme, onlineUsers }) {
   const { roomName } = useParams();
   const decodedRoomName = decodeURIComponent(roomName || '');
   const navigate = useNavigate();
@@ -834,6 +848,7 @@ function ParticipantsRoute({ room, isLoggedIn, theme, setTheme }) {
       onClose={handleClose}
       theme={theme}
       setTheme={setTheme}
+      onlineUsers={onlineUsers}
     />
   );
 }
@@ -863,6 +878,7 @@ function ChatRoomRoute({
   toggleMusic,
   isMusicPlaying,
   playNextRandomSong,
+  onlineUsers=[],
   soundFiles = [],
   currentSongIndex = 0,
   toggleBackgroundPicker,
@@ -935,6 +951,10 @@ function ChatRoomRoute({
       <header className="chat-header">
         <div className="chat-header-info">
           <h1>Room: {room}</h1>
+          <span className="online-presence-pill" title={`${onlineUsers.length} user(s) currently online`}>
+            <span className="online-status-dot"></span>
+            {onlineUsers.length} online
+          </span>
           <p>Welcome, <span style={{ color: getUserColor(username), fontWeight: 600 }}>{username}</span></p>
         </div>
         <div className="chat-header-actions">

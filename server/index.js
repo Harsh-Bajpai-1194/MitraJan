@@ -448,6 +448,28 @@ app.get('/api/rooms', async (req, res) => {
     }
 });
 
+const getRoomOnlineUsers = (roomName) => {
+    if (!roomName) return [];
+    const roomSockets = io.sockets.adapter.rooms.get(roomName);
+    if (!roomSockets) return [];
+
+    const usersMap = new Map();
+    for (const socketId of roomSockets) {
+        const sock = io.sockets.sockets.get(socketId);
+        if (sock && sock.username) {
+            const key = (sock.email || sock.username).toLowerCase();
+            if (!usersMap.has(key)) {
+                usersMap.set(key, {
+                    username: sock.username,
+                    email: sock.email || '',
+                    picture: sock.picture || null,
+                })
+            }
+        }
+    }
+    return Array.from(usersMap.values());
+};
+
 app.get('/api/rooms/:roomName/participants', (req, res) => {
     const { roomName } = req.params;
     const roomSockets = io.sockets.adapter.rooms.get(roomName);
@@ -567,6 +589,11 @@ io.on('connection', (socket) => {
         socket.username = username; // Store username on the socket instance
         if (email) socket.email = email;
         if (picture) socket.picture = picture;
+
+        // If the socket is already in a room, refresh the room's presence
+        if (socket.currentRoom) {
+            io.to(socket.currentRoom).emit('room users', getRoomOnlineUsers(socket.currentRoom));
+        }
     });
     
     // Typing indicator
@@ -617,9 +644,15 @@ io.on('connection', (socket) => {
 
         await ensureRoomExists(normalizedRoom);
         socket.join(normalizedRoom);
-        // Announce that a user has joined the room
+        socket.currentRoom = normalizedRoom;
+        socket.currentRoom = normalizedRoom; // Store active room on socket
+
+        // Announce user joined
         io.to(normalizedRoom).emit('system message', `${socket.username || 'Anonymous'} has joined the room.`);
         io.emit('rooms updated');
+
+        // Broadcast updated online presence to everyone in the room
+        io.to(normalizedRoom).emit('room users', getRoomOnlineUsers(normalizedRoom));
 
         // Send recent chat history to the newly joined user
         const history = await getRoomHistory(normalizedRoom);
@@ -643,7 +676,11 @@ io.on('connection', (socket) => {
     // Handle leaving rooms
     socket.on('leave room', (room) => {
         socket.leave(room);
-        io.to(room).emit('system message', `${socket.username || 'Anonymous'} has left the room.`);
+        const prevRoom = socket.currentRoom || room;
+        socket.currentRoom = null;
+
+        io.to(prevRoom).emit('system message', `${socket.username || 'Anonymous'} has left the room`);
+        io.to(prevRoom).emit('room users', getRoomOnlineUsers(prevRoom));
     });
 
     socket.on('delete message', async (messageId, room) => {
@@ -668,10 +705,17 @@ io.on('connection', (socket) => {
             io.to(room).emit('message deleted', messageId);
         }
     });
+
     // Handle disconnect
     socket.on('disconnect', () => {
-        console.log('User disconnected');
-        // You could add logic here to announce that a user has left.
+        console.log('User disconnected', socket.username);
+        if (socket.currentRoom) {
+            const roomName = socket.currentRoom;
+            io.to(roomName).emit('system message', `${socket.username || 'Anonymous'} has left the room.`);
+            // Update presence for remaining members.
+            io.to(roomName).emit('room users', getRoomOnlineUsers(roomName));
+            io.emit('rooms updated');
+        }
     });
 });
 
