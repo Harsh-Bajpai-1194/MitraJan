@@ -842,13 +842,21 @@ function ParticipantsRoute({ room, isLoggedIn, theme, setTheme, onlineUsers }) {
       navigate('/discover');
     }
   };
+
+  // Only pass active presence if the user is actually inside this room.
+  const isCurrentRoom = Boolean(
+    room &&
+    decodedRoomName &&
+    room.trim().toLowerCase() === decodedRoomName.trim().toLowerCase()
+  );
+
   return (
     <ParticipantsPage
       roomName={decodedRoomName}
       onClose={handleClose}
       theme={theme}
       setTheme={setTheme}
-      onlineUsers={onlineUsers}
+      onlineUsers={isCurrentRoom ? onlineUsers : []}
     />
   );
 }

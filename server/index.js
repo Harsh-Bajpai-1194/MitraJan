@@ -457,11 +457,10 @@ const getRoomOnlineUsers = (roomName) => {
     for (const socketId of roomSockets) {
         const sock = io.sockets.sockets.get(socketId);
         if (sock && sock.username) {
-            const key = (sock.email || sock.username).toLowerCase();
+            const key = sock.username.toLowerCase();
             if (!usersMap.has(key)) {
                 usersMap.set(key, {
                     username: sock.username,
-                    email: sock.email || '',
                     picture: sock.picture || null,
                 })
             }
