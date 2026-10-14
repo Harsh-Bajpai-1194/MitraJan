@@ -3,10 +3,19 @@ import './ParticipantsPage.css';
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
 import { getUserColor } from './utils/getUserColor.js';
 
-const ParticipantsPage = ({ roomName, onClose, theme, setTheme }) => {
+  const ParticipantsPage = ({ roomName, onClose, theme, setTheme, onlineUsers = [] }) => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const isOnline = (member) => {
+    if (!member || !Array.isArray(onlineUsers)) return false;
+    const memberKey = member.memberId || (member.username || '').trim().toLowerCase();
+    return onlineUsers.some(u => {
+      const uKey = u.memberId || (u.username || '').trim().toLowerCase();
+      return uKey === memberKey;
+    });
+  };
 
   const isGuestUser = (member) => {
     if (!member) return false;
@@ -76,19 +85,26 @@ const ParticipantsPage = ({ roomName, onClose, theme, setTheme }) => {
               <div className="members-section">
                 <h3 className="section-title">Members ({regularUsers.length})</h3>
                 <ul>
+                  {/* Regular Users */}
                   {regularUsers.map((member, index) => (
                     <li key={member.username || index} className="member-item">
-                      <img
-                        src={getAvatarUrl(member.username, member.picture, member.email)}
-                        alt={member.username}
-                        className="member-avatar"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = getAvatarUrl(member.username, '', member.email);
-                        }}
-                      />
+                      <div className="avatar-wrapper">
+                        <img
+                          src={getAvatarUrl(member.username, member.picture, member.email)}
+                          alt={member.username}
+                          className="member-avatar"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = getAvatarUrl(member.username, '', member.email);
+                          }}
+                        />
+                        <span className={`presence-indicator ${isOnline(member) ? 'online' : 'offline'}`} />
+                      </div>
                       <span className="member-name" style={{ color: getUserColor(member.username), fontWeight: 600 }}>
                         {member.username}
+                      </span>
+                      <span className={`status-badge ${isOnline(member) ? 'status-online' : 'status-offline'}`}>
+                        {isOnline(member) ? '● Online' : '○ Offline'}
                       </span>
                     </li>
                   ))}
@@ -102,28 +118,33 @@ const ParticipantsPage = ({ roomName, onClose, theme, setTheme }) => {
                 <ul>
                   {guestUsers.map((member, index) => (
                     <li key={member.username || index} className="member-item guest-item">
-                      <img
-                        src={getAvatarUrl(member.username, member.picture, member.email)}
-                        alt={member.username}
-                        className="member-avatar"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = getAvatarUrl(member.username, '', member.email);
-                        }}
-                      />
+                      <div className="avatar-wrapper">
+                        <img
+                          src={getAvatarUrl(member.username, member.picture, member.email)}
+                          alt={member.username}
+                          className="member-avatar"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = getAvatarUrl(member.username, '', member.email);
+                          }}
+                        />
+                        <span className={`presence-indicator ${isOnline(member) ? 'online' : 'offline'}`} />
+                      </div>
                       <span className="member-name" style={{ color: getUserColor(member.username), fontWeight: 600 }}>
                         {member.username}
                       </span>
-                      <span className="guest-badge">Guest</span>
+                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="guest-badge" style={{ margin: 0 }}>Guest</span>
+                        <span className={`status-badge ${isOnline(member) ? 'status-online' : 'status-offline'}`} style={{ margin: 0 }}>
+                          {isOnline(member) ? '● Online' : '○ Offline'}
+                        </span>
+                      </div>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
           </div>
-        )}
-        {!loading && !error && members.length === 0 && (
-          <p>This room has no members yet.</p>
         )}
       </main>
     </div>
