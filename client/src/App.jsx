@@ -356,7 +356,7 @@ function App() {
         setTypingUser("");
       }, 2000);
     });
-    return () => {
+      return () => {
       newSocket.off('connect', handleConnect);
       newSocket.off('chat message', handleChatMessage);
       newSocket.off('system message', handleSystemMessage);
@@ -365,10 +365,11 @@ function App() {
       newSocket.off("typing");
       newSocket.off('message deleted', handleMessageDeleted);
       newSocket.off('rooms updated', handleRoomsUpdated);
+      newSocket.off('room users', handleRoomUsers);
       newSocket.disconnect();
       socketRef.current = null;
     };
-  }, [scrollToBottom, setMessages, roomRef, setIsFetchingOlderMessages, setRoomsSignature, skipScrollToBottomRef, setTypingUser, messagesContainerRef, scrollHeightBeforeUpdate, room, pendingJoinRef, typingTimeoutRef]);
+  }, [scrollToBottom, setMessages, roomRef, setIsFetchingOlderMessages, setRoomsSignature, skipScrollToBottomRef, setTypingUser, messagesContainerRef, scrollHeightBeforeUpdate, pendingJoinRef, typingTimeoutRef]);
   const playNextSong = useCallback(() => {
     if (soundFiles.length === 0) return;
     if (soundFiles.length === 1) {
