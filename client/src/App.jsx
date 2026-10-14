@@ -2,15 +2,17 @@ import './App.css';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import io from 'socket.io-client';
-import GoogleSignIn from './GoogleSignIn';
-import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
-import DiscoverRooms from './DiscoverRooms.jsx';
-import Admin from './Admin';
-import ParticipantsPage from './ParticipantsPage.jsx';
+
+// Page Routes
+import DiscoverRooms from './pages/DiscoverRooms';
+import ParticipantsPage from './pages/ParticipantsPage';
+import LoginView from './pages/LoginView';
+import ChatRoomPage from './pages/ChatRoomPage';
+import Admin from './pages/Admin';
+
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
-import { getUserColor } from './utils/getUserColor.js';
-import { FaMusic, FaVolumeMute, FaDoorOpen, FaRandom, FaPlay, FaPause, FaStepForward, FaSearch, FaClock } from 'react-icons/fa';
+
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const date = new Date(timestamp);
@@ -87,6 +89,8 @@ function App() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
   const [soundFiles, setSoundFiles] = useState(defaultCloudinarySongs);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+
   const backgroundOptions = [
     { name: 'Default', value: '', color: '#ffffff', textColor: '#1e293b' },
     { name: 'Aqua', value: '#e0f7fa', color: '#e0f7fa', textColor: '#0e7490' },
@@ -158,12 +162,9 @@ function App() {
         if (Array.isArray(songs) && songs.length > 0) {
           const uniqueSongs = Array.from(new Set(songs));
           setSoundFiles(uniqueSongs);
-          const initialIdx = Math.floor(Math.random() * uniqueSongs.length);
-          setCurrentSongIndex(initialIdx);
-          unplayedIndicesRef.current = uniqueSongs.map((_, i) => i).filter((i) => i !== initialIdx);
         }
-      } catch (error) {
-        console.error('Error fetching songs:', error);
+      } catch (err) {
+        console.warn('Could not fetch songs from backend, using defaults.');
       }
     };
     fetchSongs();
@@ -171,44 +172,46 @@ function App() {
 
   const startMusic = useCallback(() => {
     setIsMusicPlaying(true);
+    if (audioRef.current) {
+      audioRef.current.play().catch(() => {});
+    }
   }, []);
-  const joinChatRoomCallback = useCallback((roomName, selectedUsername, userEmail = '', userPicture = '') => {
-    setShowCreateRoomPopup(false);
-    const socket = socketRef.current;
-    const nextRoom = (roomName || '').trim();
-    const nextUsername = (selectedUsername || '').trim() || `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-    const isSwitchingRooms = Boolean(room && room !== nextRoom);
-    const finalPicture = userPicture || getAvatarUrl(nextUsername, '', userEmail);
-    if (isSwitchingRooms) {
-      setPendingRoomSwitch({ roomName: nextRoom, selectedUsername: nextUsername, picture: finalPicture });
-      return 'confirm';
-    }
-    pendingJoinRef.current = { room: nextRoom, username: nextUsername, email: userEmail, picture: finalPicture };
-    setRoom(nextRoom);
-    roomRef.current = nextRoom;
-    if (socket?.connected) {
-      socket.emit('join room', nextRoom);
-      socket.emit('set username', nextUsername, nextRoom, userEmail, finalPicture);
-    } else {
-      setMessages((prevMessages) => {
-        const hasConnectingMsg = prevMessages.some(m => m.text === 'Connecting to the chat server...' && (m.room || '').trim().toLowerCase() === nextRoom.toLowerCase());
-        if (hasConnectingMsg) return prevMessages;
-        return [...prevMessages, { text: 'Connecting to the chat server...', type: 'system', time: getFormattedTime(), room: nextRoom }];
+
+  const joinChatRoomCallback = useCallback((roomToJoin, userToSet, emailToSet = '', pictureToSet = '') => {
+    const trimmedRoom = (roomToJoin || '').trim();
+    if (!trimmedRoom) return 'error';
+
+    if (room && room.trim().toLowerCase() !== trimmedRoom.toLowerCase()) {
+      setPendingRoomSwitch({
+        targetRoom: trimmedRoom,
+        username: userToSet,
+        email: emailToSet,
+        picture: pictureToSet
       });
+      return 'pending_confirm';
     }
-    setUsername(nextUsername);
-    if (userEmail) setEmail(userEmail);
-    setPicture(finalPicture);
-    const sessionData = { name: nextUsername, room: nextRoom, email: userEmail, picture: finalPicture };
-    localStorage.setItem('chatSession', JSON.stringify(sessionData));
+
+    setRoom(trimmedRoom);
+    setUsername(userToSet);
+    setEmail(emailToSet);
+    setPicture(pictureToSet);
     setIsLoggedIn(true);
-    if (soundFiles.length > 0) {
-      const randomIndex = Math.floor(Math.random() * soundFiles.length);
-      setCurrentSongIndex(randomIndex);
+    setMessages([]);
+    localStorage.setItem('chatSession', JSON.stringify({ name: userToSet, email: emailToSet, picture: pictureToSet }));
+
+    if (socketRef.current) {
+      if (socketRef.current.connected) {
+        socketRef.current.emit('join room', trimmedRoom);
+        socketRef.current.emit('set username', userToSet, trimmedRoom, emailToSet, pictureToSet);
+      } else {
+        pendingJoinRef.current = { room: trimmedRoom, username: userToSet, email: emailToSet, picture: pictureToSet };
+      }
     }
-    navigate(`/chat/${encodeURIComponent(nextRoom)}`);
+    startMusic();
+    navigate(`/chat/${encodeURIComponent(trimmedRoom)}`);
     return 'joined'; 
-  }, [room, startMusic, setCurrentSongIndex, navigate, soundFiles, setShowCreateRoomPopup, setPendingRoomSwitch, setRoom, setUsername, setEmail, setPicture, setIsLoggedIn, setMessages]);
+  }, [room, startMusic, navigate]);
+
   const toggleBackgroundPicker = () => { 
     setShowBackgroundPicker((prev) => !prev);
   };
@@ -224,14 +227,13 @@ function App() {
     if (messagesEndRef.current?.scrollIntoView) {
       messagesEndRef.current.scrollIntoView({ behavior: instant ? "auto" : "smooth" });
     }
-  }, [messagesContainerRef, messagesEndRef]);
+  }, []);
+
   useLayoutEffect(() => {
     const isDeletion = skipScrollToBottomRef.current || (prevMessagesCountRef.current > 0 && messages.length < prevMessagesCountRef.current);
     skipScrollToBottomRef.current = false;
     prevMessagesCountRef.current = messages.length;
-    if (isDeletion) {
-      return;
-    }
+    if (isDeletion) return;
     if (scrollHeightBeforeUpdate.current !== null) {
       const container = messagesContainerRef.current;
       if (container) {
@@ -241,7 +243,8 @@ function App() {
     } else {
       scrollToBottom();
     }
-  }, [messages, scrollToBottom, skipScrollToBottomRef, prevMessagesCountRef, scrollHeightBeforeUpdate, messagesContainerRef]);
+  }, [messages, scrollToBottom]);
+
   useEffect(() => {
     roomRef.current = room;
     if (room && isLoggedIn) {
@@ -254,6 +257,7 @@ function App() {
       };
     }
   }, [room, isLoggedIn, scrollToBottom]);
+
   useEffect(() => {
     const newSocket = io(getSocketUrl(), {
       transports: ['websocket', 'polling'],
@@ -262,6 +266,7 @@ function App() {
       reconnectionDelay: 1000,
     });
     socketRef.current = newSocket;
+
     const handleConnect = () => {
       const pendingJoin = pendingJoinRef.current;
       if (pendingJoin) {
@@ -271,6 +276,7 @@ function App() {
         newSocket.emit('join room', roomRef.current);
       }
     };
+
     const handleChatMessage = (message) => {
       if (!message) return;
       const currentRoom = (roomRef.current || '').trim().toLowerCase();
@@ -279,9 +285,11 @@ function App() {
         setMessages((prevMessages) => [...prevMessages, { ...message, room: message.room || roomRef.current, type: 'chat', time: getFormattedTime(message.timestamp) }]);
       }
     };
+
     const handleSystemMessage = (message) => {
       setMessages((prevMessages) => [...prevMessages, { text: message, type: 'system', time: getFormattedTime(), room: roomRef.current, timestamp: Date.now() }]);
     };
+
     const handleChatHistory = (history, roomName) => {
       const currentRoom = (roomRef.current || '').trim().toLowerCase();
       const historyRoom = (roomName || '').trim().toLowerCase();
@@ -304,6 +312,7 @@ function App() {
         setTimeout(() => scrollToBottom(true), 150);
       }
     };
+
     const handleOlderMessages = (olderMessages, roomName) => {
       const currentRoom = (roomRef.current || '').trim().toLowerCase();
       const historyRoom = (roomName || '').trim().toLowerCase();
@@ -321,13 +330,26 @@ function App() {
       }
       setIsFetchingOlderMessages(false);
     };
+
     const handleRoomsUpdated = () => {
       setRoomsSignature(Date.now());
     };
+
     const handleMessageDeleted = (messageId) => {
       skipScrollToBottomRef.current = true;
       setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== messageId));
     };
+
+    const handleRoomUsers = (users) => {
+      setOnlineUsers(Array.isArray(users) ? users : []);
+    };
+
+    const handleDisconnect = () => {
+      setOnlineUsers([]);
+    };
+
+    newSocket.on('room users', handleRoomUsers);
+    newSocket.on('disconnect', handleDisconnect);
     newSocket.on('connect', handleConnect);
     newSocket.on('chat message', handleChatMessage);
     newSocket.on('system message', handleSystemMessage);
@@ -335,9 +357,11 @@ function App() {
     newSocket.on('older messages', handleOlderMessages);
     newSocket.on('rooms updated', handleRoomsUpdated);
     newSocket.on('message deleted', handleMessageDeleted);
+
     if (newSocket.connected) {
       handleConnect();
     }
+
     newSocket.on("typing", (username) => {
       setTypingUser(`${username} is typing...`);
       if (typingTimeoutRef.current) {
@@ -347,8 +371,10 @@ function App() {
         setTypingUser("");
       }, 2000);
     });
+
     return () => {
       newSocket.off('connect', handleConnect);
+      newSocket.off('disconnect', handleDisconnect);
       newSocket.off('chat message', handleChatMessage);
       newSocket.off('system message', handleSystemMessage);
       newSocket.off('chat history', handleChatHistory);
@@ -356,10 +382,12 @@ function App() {
       newSocket.off("typing");
       newSocket.off('message deleted', handleMessageDeleted);
       newSocket.off('rooms updated', handleRoomsUpdated);
+      newSocket.off('room users', handleRoomUsers);
       newSocket.disconnect();
       socketRef.current = null;
     };
-  }, [scrollToBottom, setMessages, roomRef, setIsFetchingOlderMessages, setRoomsSignature, skipScrollToBottomRef, setTypingUser, messagesContainerRef, scrollHeightBeforeUpdate, room, pendingJoinRef, typingTimeoutRef]);
+  }, [scrollToBottom, setMessages, roomRef, setIsFetchingOlderMessages, setRoomsSignature, skipScrollToBottomRef, setTypingUser, messagesContainerRef, scrollHeightBeforeUpdate, pendingJoinRef, typingTimeoutRef]);
+
   const playNextSong = useCallback(() => {
     if (soundFiles.length === 0) return;
     if (soundFiles.length === 1) {
@@ -367,187 +395,115 @@ function App() {
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(() => {});
       }
-      setIsMusicPlaying(true);
       return;
     }
-
-    if (!unplayedIndicesRef.current || unplayedIndicesRef.current.length === 0) {
-      unplayedIndicesRef.current = soundFiles
-        .map((_, i) => i)
-        .filter((i) => i !== currentSongIndex);
+    if (unplayedIndicesRef.current.length === 0) {
+      unplayedIndicesRef.current = Array.from({ length: soundFiles.length }, (_, i) => i)
+        .filter(i => i !== currentSongIndex);
     }
-
-    const pool = unplayedIndicesRef.current;
-    const randomPoolPos = Math.floor(Math.random() * pool.length);
-    const nextSongIdx = pool[randomPoolPos];
-
-    unplayedIndicesRef.current.splice(randomPoolPos, 1);
-
-    setCurrentSongIndex(nextSongIdx);
-    setIsMusicPlaying(true);
+    const randPick = Math.floor(Math.random() * unplayedIndicesRef.current.length);
+    const nextIdx = unplayedIndicesRef.current[randPick];
+    unplayedIndicesRef.current.splice(randPick, 1);
+    setCurrentSongIndex(nextIdx);
   }, [soundFiles, currentSongIndex]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    const handleEnded = () => {
-      playNextSong();
-    };
-
-    const handleError = (e) => {
-      console.warn("Audio element error on current track, auto-skipping...", e);
-      setTimeout(() => {
-        playNextSong();
-      }, 400);
-    };
-
-    if (isMusicPlaying && soundFiles.length > 0) {
-      const currentTrack = soundFiles[currentSongIndex];
-      if (currentTrack) {
-        if (audio.src !== currentTrack) {
-          audio.src = currentTrack;
-          audio.load();
-        }
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((err) => {
-            console.warn("Audio play promise error:", err);
-            setTimeout(() => {
-              if (soundFiles.length > 1) {
-                playNextSong();
-              }
-            }, 800);
-          });
-        }
+    const currentTrack = soundFiles[currentSongIndex];
+    if (currentTrack) {
+      audio.src = currentTrack;
+      if (isMusicPlaying) {
+        audio.play().catch(() => {});
       }
-    } else {
-      audio.pause();
     }
-
+    const handleEnded = () => playNextSong();
     audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('error', handleError);
+    return () => audio.removeEventListener('ended', handleEnded);
+  }, [currentSongIndex, isMusicPlaying, soundFiles, playNextSong]);
 
-    return () => {
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
-    };
-  }, [isMusicPlaying, currentSongIndex, soundFiles, playNextSong]);
-
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    const handleScroll = () => {
-      if (container && container.scrollTop <= 20 && !isFetchingOlderMessages && messages.length > 0) {
-        const oldestMessageId = messages[0]?._id;
-        if (oldestMessageId) {
-          setIsFetchingOlderMessages(true);
-          socketRef.current.emit('fetch older messages', {
-            room: room,
-            lastMessageId: oldestMessageId,
-          });
-        }
-      }
-    };
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-    }
-    return () => {
-      if (container) {
-        container.removeEventListener('scroll', handleScroll);
-      }
-    };
-  }, [messages, isFetchingOlderMessages, room]);
-  const joinChatRoom = joinChatRoomCallback;
-  const confirmRoomSwitch = () => {
-    if (!pendingRoomSwitch) return;
-    const socket = socketRef.current;
-    const { roomName: nextRoom, selectedUsername: nextUsername, picture: userPicture } = pendingRoomSwitch;
-    const userEmail = email;
-    if (socket?.connected && room) {
-      socket.emit('leave room', room);
-    }
-    setRoom(nextRoom);
-    roomRef.current = nextRoom;
-    pendingJoinRef.current = { room: nextRoom, username: nextUsername, email: userEmail, picture: userPicture };
-    setUsername(nextUsername);
-    setPicture(userPicture);
-    setPendingRoomSwitch(null);
-    setShowCreateRoomPopup(false);
-    if (socket?.connected) {
-      socket.emit('join room', nextRoom);
-      socket.emit('set username', nextUsername, nextRoom, userEmail, userPicture);
-    }
-    const sessionData = {
-    name: nextUsername,
-    room: nextRoom,
-    email: userEmail,
-    picture: userPicture
-  };
-    localStorage.setItem('chatSession', JSON.stringify(sessionData));
-    if (userEmail === 'harshbajpai1194@gmail.com') setIsAdmin(true);
-    setIsLoggedIn(true);
-    navigate(`/chat/${encodeURIComponent(nextRoom)}`);
-  };
-  const handleOpenCreateRoomPopup = () => {
-    setNewRoomName('');
-    setShowCreateRoomPopup(true);
-  };
-  const handleCreateRoomSubmit = (e) => {
-    e.preventDefault();
-    const targetRoom = (newRoomName || '').trim();
-    if (targetRoom) {
-      setShowCreateRoomPopup(false);
-      setNewRoomName('');
-      joinChatRoomCallback(targetRoom, username, email, picture);
-    }
-  };
   const sendMessage = (e) => {
-    if (e) e.preventDefault();
-    const trimmedMessage = (currentMessage || '').trim();
-    if (!trimmedMessage) return;
+    e.preventDefault();
+    if (!currentMessage.trim()) return;
 
     if (spamProtection) {
       const now = Date.now();
-      if (now - lastMessageTimeRef.current < 1200) {
-        setSpamWarning('Please wait a moment before sending another message (Spam Protection active).');
+      const timeSinceLastMessage = now - lastMessageTimeRef.current;
+      const isDuplicate = currentMessage.trim().toLowerCase() === lastMessageTextRef.current.trim().toLowerCase();
+
+      if (timeSinceLastMessage < 1500) {
+        setSpamWarning('Please wait a moment before sending another message.');
         setTimeout(() => setSpamWarning(''), 3000);
         return;
       }
-      if (lastMessageTextRef.current.toLowerCase() === trimmedMessage.toLowerCase() && now - lastMessageTimeRef.current < 3000) {
-        setSpamWarning('Duplicate message blocked by Spam Protection.');
+      if (isDuplicate && timeSinceLastMessage < 5000) {
+        setSpamWarning('Please avoid sending duplicate messages so quickly.');
         setTimeout(() => setSpamWarning(''), 3000);
         return;
       }
       lastMessageTimeRef.current = now;
-      lastMessageTextRef.current = trimmedMessage;
+      lastMessageTextRef.current = currentMessage;
     }
 
-    const socket = socketRef.current;
-    if (!socket?.connected) {
-      setMessages((prevMessages) => [...prevMessages, { text: 'Unable to send right now. Please wait for the connection to finish.', type: 'system', time: getFormattedTime() }]);
-      return;
+    if (socketRef.current && (room || '').trim()) {
+      socketRef.current.emit('chat message', currentMessage, (room || '').trim());
+      setCurrentMessage('');
+      setShowEmojiPicker(false);
     }
-    socket.emit('chat message', trimmedMessage, (room || '').trim());
-    setCurrentMessage('');
-    setShowEmojiPicker(false);
-    setSpamWarning('');
   };
+
+  const handleOpenCreateRoomPopup = () => {
+    setShowCreateRoomPopup(true);
+  };
+
+  const handleCreateRoomSubmit = (e) => {
+    e.preventDefault();
+    const trimmed = (newRoomName || '').trim();
+    if (!trimmed) return;
+    const defaultUsername = username.trim() || 'GuestUser';
+    setUsername(defaultUsername);
+    setShowCreateRoomPopup(false);
+    setNewRoomName('');
+    joinChatRoomCallback(trimmed, defaultUsername, email, picture);
+  };
+
+  const confirmRoomSwitch = () => {
+    if (!pendingRoomSwitch) return;
+    const { targetRoom, username: u, email: em, picture: pic } = pendingRoomSwitch;
+    setPendingRoomSwitch(null);
+
+    if (socketRef.current?.connected && room) {
+      socketRef.current.emit('leave room', room);
+    }
+    setRoom(targetRoom);
+    setUsername(u);
+    setEmail(em);
+    setPicture(pic);
+    setIsLoggedIn(true);
+    setMessages([]);
+    localStorage.setItem('chatSession', JSON.stringify({ name: u, email: em, picture: pic }));
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('join room', targetRoom);
+      socketRef.current.emit('set username', u, targetRoom, em, pic);
+    }
+    startMusic();
+    navigate(`/chat/${encodeURIComponent(targetRoom)}`);
+  };
+
   const handleGoogleSignIn = (user) => {
-    const avatarUrl = user.picture || getAvatarUrl(user.name, '', user.email || '');
     setUsername(user.name);
     setEmail(user.email);
-    setPicture(avatarUrl);
-    if (user.email === 'harshbajpai1194@gmail.com') {
-      setIsAdmin(true);
-    }
+    setPicture(user.picture);
     setShowRoomForm(true);
   };
+
   const handleDeleteMessage = (messageId) => {
-    skipScrollToBottomRef.current = true;
-    if (socketRef.current?.connected) {
+    if (socketRef.current && room) {
       socketRef.current.emit('delete message', messageId, room);
     }
   };
+
   const handleLeaveRoom = () => {
     if (socketRef.current?.connected && room) {
       socketRef.current.emit('leave room', room);
@@ -558,12 +514,15 @@ function App() {
     setEmail('');
     setPicture('');
     setIsAdmin(false);
+    setOnlineUsers([]);
     localStorage.removeItem('chatSession');
     navigate('/login');
   };
+
   const handleOpenDiscoverRooms = () => {
     navigate('/discover');
   };
+
   const handleAdminLogin = () => {
     const adminUsername = username.trim() || 'AdminUser';
     const adminEmail = 'harshbajpai1194@gmail.com';
@@ -574,9 +533,11 @@ function App() {
     setIsAdmin(true);
     setShowRoomForm(true);
   };
+
   const handleViewMembers = (roomName) => {
     navigate(`/participants/${encodeURIComponent(roomName)}`);
   };
+
   const toggleMusic = useCallback(() => {
     setIsMusicPlaying((prev) => !prev);
   }, []);
@@ -584,6 +545,7 @@ function App() {
   const playNextRandomSong = useCallback(() => {
     playNextSong();
   }, [playNextSong]);
+
   return (
     <>
       <audio ref={audioRef} preload="auto"/>
@@ -661,7 +623,7 @@ function App() {
         } />
         <Route path="/discover" element={
           <DiscoverRooms
-            joinChatRoom={joinChatRoom}
+            joinChatRoom={joinChatRoomCallback}
             onClose={() => {
               if (room && isLoggedIn) {
                 navigate(`/chat/${encodeURIComponent(room)}`);
@@ -692,16 +654,18 @@ function App() {
             isLoggedIn={isLoggedIn}
             theme={theme}
             setTheme={setTheme}
+            onlineUsers={onlineUsers}
           />
         } />
         <Route path="/chat/:roomName" element={
-          <ChatRoomRoute
+          <ChatRoomPage
             room={room}
             setRoom={setRoom}
             isLoggedIn={isLoggedIn}
             username={username}
             email={email}
             picture={picture}
+            onlineUsers={onlineUsers}
             joinChatRoomCallback={joinChatRoomCallback}
             selectedBackground={selectedBackground}
             toggleMusic={toggleMusic}
@@ -740,6 +704,7 @@ function App() {
             spamWarning={spamWarning}
             theme={theme}
             setTheme={setTheme}
+            getSongTitleFromUrl={getSongTitleFromUrl}
           />
         } />
         <Route path="/admin" element={
@@ -755,69 +720,8 @@ function App() {
     </>
   );
 }
-function LoginView({ showRoomForm, setShowRoomForm, username, setUsername, handleGoogleSignIn, handleOpenDiscoverRooms, handleOpenCreateRoomPopup, handleAdminLogin, isAdmin, theme, setTheme }) {
-  const isDevTesting = process.env.NODE_ENV !== 'production' || 
-    window.location.hostname === 'localhost' || 
-    window.location.hostname === '127.0.0.1' || 
-    window.location.hostname.includes('dev');
-    
-  const toggleTheme = () => {
-    if (setTheme) {
-      setTheme(prev => prev === 'light' ? 'dark' : 'light');
-    }
-  };
 
-  return (
-    <div className={`login-container ${theme === 'dark' ? 'dark-mode' : ''}`}>
-      <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
-        <button className="theme-toggle-btn" onClick={toggleTheme} title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}>
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
-      </div>
-      {!showRoomForm ? (
-        <div className="login-form">
-          <h2>Join Chat <div className="release-link-wrapper">
-            <a href="https://github.com/Harsh-Bajpai-1194/Real-Time-Chat-App" target="_blank" rel="noopener noreferrer" className="release-link">
-              <img src="https://img.shields.io/badge/Release-v1.4.0-deeppink?style=for-the-the-badge&logo=github" alt="v1.4.0" className="release-badge" />
-            </a>
-          </div>
-          </h2>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
-            <GoogleSignIn onSignIn={handleGoogleSignIn} />
-          </div>
-          <p style={{ textAlign: 'center', margin: '0 0 15px 0', opacity: 0.7 }}>— OR —</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button className="btn-primary" type="button" onClick={() => setShowRoomForm(true)}>
-              Join as a Guest User
-            </button>
-            {isDevTesting && (
-              <button
-                className="btn-secondary"
-                type="button"
-                onClick={handleAdminLogin}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', border: '1px dashed #e02424', color: '#ff6b6b' }}
-                title="Only visible for local and development testing"
-              >
-                🛡️ Login as Admin <span style={{ fontSize: '0.75rem', opacity: 0.85 }}>(Local Testing Only)</span>
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="login-form">
-          <h2>Welcome{username ? `, ${username}` : ''}! {isAdmin && <span style={{ fontSize: '0.8rem', background: '#e02424', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', marginLeft: '6px', verticalAlign: 'middle', fontWeight: 'bold' }}>Admin</span>}</h2>
-          <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>How would you like to join?</p>
-          <div className="form-actions">
-            <button className="btn-primary" onClick={handleOpenDiscoverRooms}>Discover Rooms</button>
-            <button className="btn-primary" onClick={handleOpenCreateRoomPopup}>Create a New Room</button>
-            <button className="btn-secondary" type="button" onClick={() => { setShowRoomForm(false); setUsername(''); }}>Back</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-function ParticipantsRoute({ room, isLoggedIn, theme, setTheme }) {
+function ParticipantsRoute({ room, isLoggedIn, theme, setTheme, onlineUsers }) {
   const { roomName } = useParams();
   const decodedRoomName = decodeURIComponent(roomName || '');
   const navigate = useNavigate();
@@ -828,15 +732,24 @@ function ParticipantsRoute({ room, isLoggedIn, theme, setTheme }) {
       navigate('/discover');
     }
   };
+
+  const isCurrentRoom = Boolean(
+    room &&
+    decodedRoomName &&
+    room.trim().toLowerCase() === decodedRoomName.trim().toLowerCase()
+  );
+
   return (
     <ParticipantsPage
       roomName={decodedRoomName}
       onClose={handleClose}
       theme={theme}
       setTheme={setTheme}
+      onlineUsers={isCurrentRoom ? onlineUsers : []}
     />
   );
 }
+
 function AdminRoute({ socketRef, room, isLoggedIn, isAdmin }) {
   const navigate = useNavigate();
   const handleClose = () => {
@@ -849,381 +762,12 @@ function AdminRoute({ socketRef, room, isLoggedIn, isAdmin }) {
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
-  return <Admin socket={socketRef.current} onClose={handleClose} />;
-}
-function ChatRoomRoute({
-  room,
-  setRoom,
-  isLoggedIn,
-  username,
-  email,
-  picture,
-  joinChatRoomCallback,
-  selectedBackground,
-  toggleMusic,
-  isMusicPlaying,
-  playNextRandomSong,
-  soundFiles = [],
-  currentSongIndex = 0,
-  toggleBackgroundPicker,
-  isAdmin,
-  handleOpenAdminPanel,
-  handleOpenDiscoverRooms,
-  handleLeaveRoom,
-  showBackgroundPicker,
-  backgroundOptions,
-  selectBackground,
-  showAdminPanel,
-  setShowAdminPanel,
-  socketRef,
-  messagesContainerRef,
-  isFetchingOlderMessages,
-  messages,
-  handleDeleteMessage,
-  messagesEndRef,
-  typingUser,
-  sendMessage,
-  showEmojiPicker,
-  setShowEmojiPicker,
-  setCurrentMessage,
-  currentMessage,
-  enterIsSend,
-  toggleEnterIsSend,
-  spamProtection,
-  toggleSpamProtection,
-  showSettingsModal,
-  setShowSettingsModal,
-  spamWarning,
-  theme,
-  setTheme
-}) {
-  const { roomName } = useParams();
-  const decodedRoomName = decodeURIComponent(roomName || '');
-  const navigate = useNavigate();
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  useEffect(() => {
-    if (decodedRoomName && decodedRoomName !== room) {
-      if (isLoggedIn && username) {
-        joinChatRoomCallback(decodedRoomName, username, email, picture);
-      } else {
-        const savedSession = localStorage.getItem('chatSession');
-        if (savedSession) {
-          const { name, email: savedEmail, picture: savedPicture } = JSON.parse(savedSession);
-          if (name) {
-            joinChatRoomCallback(decodedRoomName, name, savedEmail, savedPicture);
-            return;
-          }
-        }
-        setRoom(decodedRoomName);
-      }
-    }
-  }, [decodedRoomName, room, isLoggedIn, username, email, picture, joinChatRoomCallback, setRoom]);
-  if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
   return (
-    <div className={`chat-container${selectedBackground ? ' background-selected' : ''} ${theme === 'dark' ? 'dark-mode' : ''}`} style={{
-      backgroundColor: selectedBackground || undefined,
-      transition: 'background-color 0.25s ease',
-    }}>
-      <header className="chat-header">
-        <div className="chat-header-info">
-          <h1>Room: {room}</h1>
-          <p>Welcome, <span style={{ color: getUserColor(username), fontWeight: 600 }}>{username}</span></p>
-        </div>
-        <div className="chat-header-actions">
-          <button onClick={() => navigate(`/participants/${encodeURIComponent(room)}`)} className="participants-icon-btn" title="View Participants">
-            <img src={`${process.env.PUBLIC_URL}/participants.png`} alt="Participants" style={{ width: '22px', height: '22px', display: 'block' }} />
-          </button>
-          <div className="music-player-group">
-            <div className="music-buttons-row">
-              <button onClick={toggleMusic} className="btn-secondary" title={isMusicPlaying ? "Pause Music" : "Play Music"}>
-                {isMusicPlaying ? <FaPause /> : <FaPlay />}
-              </button>
-              <button onClick={playNextRandomSong} className="btn-secondary" title="Skip Song">
-                <FaStepForward />
-              </button>
-            </div>
-            <div className="music-player-bar" title={soundFiles[currentSongIndex] || 'Cloudinary Music Track'}>
-              <div className="music-info-marquee">
-                <div className={`music-marquee-track ${isMusicPlaying ? 'scrolling' : ''}`}>
-                  <span className="music-marquee-item">
-                    <span className="music-note-icon">{isMusicPlaying ? '🎵' : '🔇'}</span>
-                    <span className="music-song-title">
-                      {isMusicPlaying ? getSongTitleFromUrl(soundFiles[currentSongIndex]) : 'Music Paused'}
-                    </span>
-                  </span>
-                  <span className="music-marquee-item" aria-hidden="true">
-                    <span className="music-note-icon">{isMusicPlaying ? '🎵' : '🔇'}</span>
-                    <span className="music-song-title">
-                      {isMusicPlaying ? getSongTitleFromUrl(soundFiles[currentSongIndex]) : 'Music Paused'}
-                    </span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <button className="theme-toggle-btn" onClick={toggleTheme} title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}>
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
-          <button className="change-bg-btn" onClick={toggleBackgroundPicker} title="Change Background">
-            <img src={`${process.env.PUBLIC_URL}/change_bg.png`} alt="Change Background" style={{ width: '22px', height: '22px', display: 'block' }} />
-          </button>
-          <button className="settings-icon-btn" onClick={() => setShowSettingsModal(true)} title="Settings" aria-label="Settings">
-            <img src={`${process.env.PUBLIC_URL}/settings.png`} alt="Settings" style={{ width: '22px', height: '22px', display: 'block' }} />
-          </button>
-          <button className="discover-rooms-icon-btn" onClick={handleOpenDiscoverRooms} title="Discover Rooms" aria-label="Discover Rooms">
-            <FaDoorOpen style={{ fontSize: '1.25rem', color: '#334155', display: 'block' }}/>
-          </button>
-          
-          
-          <button className="search-toggle-btn" onClick={() => { if (showSearch) { 
-            setSearchQuery("");}
-            setShowSearch(!showSearch);
-           }}
-            title="Search messages"
-            aria-label="Search messages">
-            <FaSearch />
-          </button>
-
-          <button className="btn-danger" onClick={handleLeaveRoom}>
-            Leave Room
-          </button>
-          </div>
-          </header>
-
-          {showSearch && (
-            <div className="message-search-container">
-              <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search messages or users..."
-              aria-label="Search messages or users"
-              autoFocus
-              />
-            </div>
-          )}
-
-      {showBackgroundPicker && (
-        <div className="background-picker">
-          {backgroundOptions.map((bg) => (
-            <button
-              key={bg.name}
-              type="button"
-              className={`background-thumb ${selectedBackground === bg.value ? 'active' : ''}`}
-              style={{
-                backgroundColor: bg.color,
-                color: bg.textColor,
-                borderColor: selectedBackground === bg.value ? '#2563eb' : 'rgba(0,0,0,0.12)'
-              }}
-              onClick={() => selectBackground(bg.value)}
-              title={`${bg.name} Background`}
-            >
-              <span className="thumb-color-dot" style={{ backgroundColor: bg.color === '#ffffff' ? '#e2e8f0' : 'rgba(0,0,0,0.15)' }} />
-              <span className="thumb-name">{bg.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {showSettingsModal && (
-        <div className="popup-overlay" onClick={() => setShowSettingsModal(false)}>
-          <div className="settings-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="settings-modal-header">
-              <div className="settings-title">
-                <img src={`${process.env.PUBLIC_URL}/settings.png`} alt="Settings" style={{ width: '22px', height: '22px' }} />
-                <h3>Settings</h3>
-              </div>
-              <button className="settings-close-btn" onClick={() => setShowSettingsModal(false)} aria-label="Close Settings">
-                ✕
-              </button>
-            </div>
-
-            <div className="settings-modal-body">
-              {/* Option 1: Enter is Send */}
-              <div className="settings-row">
-                <div className="settings-info">
-                  <span className="settings-label">Enter is Send</span>
-                  <span className="settings-desc">Send messages by pressing Enter key</span>
-                </div>
-                <button
-                  type="button"
-                  className={`toggle-switch-btn ${enterIsSend ? 'enabled' : 'disabled'}`}
-                  onClick={toggleEnterIsSend}
-                  title={enterIsSend ? "Enabled" : "Disabled"}
-                  aria-label="Enter is Send toggle"
-                >
-                  <span className="toggle-thumb" />
-                </button>
-              </div>
-
-              {/* Option 2: Spam Protection */}
-              <div className="settings-row">
-                <div className="settings-info">
-                  <span className="settings-label">Spam Protection</span>
-                  <span className="settings-desc">Prevent rapid or duplicate messages</span>
-                </div>
-                <button
-                  type="button"
-                  className={`toggle-switch-btn ${spamProtection ? 'enabled' : 'disabled'}`}
-                  onClick={toggleSpamProtection}
-                  title={spamProtection ? "Enabled" : "Disabled"}
-                  aria-label="Spam Protection toggle"
-                >
-                  <span className="toggle-thumb" />
-                </button>
-              </div>
-
-              {isAdmin && (
-                <div className="settings-row admin-row" style={{ marginTop: '4px', borderStyle: 'dashed', borderColor: '#fca5a5', background: '#fff5f5' }}>
-                  <div className="settings-info">
-                    <span className="settings-label" style={{ color: '#991b1b' }}>Admin Panel 🛡️</span>
-                    <span className="settings-desc">Server moderation & user controls</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn-danger"
-                    style={{ fontSize: '0.8rem', padding: '6px 12px' }}
-                    onClick={() => {
-                      setShowSettingsModal(false);
-                      handleOpenAdminPanel();
-                    }}
-                  >
-                    Open
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="settings-modal-footer">
-              <button className="btn-secondary" onClick={() => setShowSettingsModal(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {isAdmin && showAdminPanel && (
-        <Admin socket={socketRef.current} onClose={() => setShowAdminPanel(false)} />
-      )}
-
-      <main className="chat-messages" ref={messagesContainerRef}>
-        {isFetchingOlderMessages && <div className="loading-older-messages" style={{ textAlign: 'center', padding: '10px' }}>Loading...</div>}
-        {messages     
-          .filter(msg => {
-            if (!msg.room) return true;
-            return msg.room.trim().toLowerCase() === (room || '').trim().toLowerCase();
-          })
-
-          .filter(msg => {
-            const query = searchQuery.toLowerCase();
-
-            return (
-              msg.text?.toLowerCase().includes(query) ||
-              msg.username?.toLowerCase().includes(query)
-            );
-          })
-
-          .sort((a, b) => {
-            const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-            const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-            return timeA - timeB;
-          })
-          .map((msg, idx) => {
-            const keyVal = msg._id || `${msg.timestamp || ''}-${msg.username || 'sys'}-${idx}`;
-            if (msg.type !== 'chat') {
-              return (
-                <div key={keyVal} className="message-item system">
-                  <span className="system-text">{msg.text}</span>
-                </div>
-              );
-            }
-            const isOwnMessage = msg.username === username;
-
-            return (
-              <div key={keyVal} className={`message-wrapper ${isOwnMessage ? 'own-message-wrapper' : ''}`}>
-                <div className={`message-item ${isOwnMessage ? 'own-message' : 'other-message'}`}>
-                  <img className="avatar" src={getAvatarUrl(msg.username, msg.picture, msg.email)} alt={`${msg.username}'s avatar`} />
-                  <div className="message-content">
-                    <div className="message-header">
-                      <span className="username" style={{ color: getUserColor(msg.username), fontWeight: 600 }}>{msg.username}</span>
-                      <span className="timestamp">{msg.time}</span>
-                    </div>
-                    <span className="text">{msg.text}</span>
-                  </div>
-                </div>
-                {(isAdmin || isOwnMessage) && (
-                  <button onClick={() => handleDeleteMessage(msg._id)} className="delete-btn" title="Delete message" aria-label="Delete message">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                      <path d="M10 2h4a1 1 0 0 1 1 1v1h4a1 1 0 0 1 1 1v1.5a0.5 0.5 0 0 1-0.5 0.5H3.5A0.5 0.5 0 0 1 3 6.5V5a1 1 0 0 1 1-1h4V3a1 1 0 0 1 1-1zm1 2v1h2V4h-2zM4.5 9h15l-1.15 12.05A2 2 0 0 1 16.36 23H7.64a2 2 0 0 1-1.99-1.95L4.5 9zM9.5 12a0.75 0.75 0 0 0-0.75 0.75v6.5a0.75 0.75 0 0 0 1.5 0v-6.5A0.75 0.75 0 0 0 9.5 12zm2.5 0a0.75 0.75 0 0 0-0.75 0.75v6.5a0.75 0.75 0 0 0 1.5 0v-6.5A0.75 0.75 0 0 0 12 12zm2.5 0a0.75 0.75 0 0 0-0.75 0.75v6.5a0.75 0.75 0 0 0 1.5 0v-6.5A0.75 0.75 0 0 0 14.5 12z" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        <div ref={messagesEndRef} />
-      </main>
-      {typingUser && (
-        <div className="typing-indicator">{typingUser}</div>
-      )}
-      {spamWarning && (
-        <div className="spam-warning-banner">
-          <span>⚠️</span> {spamWarning}
-        </div>
-      )}
-      <form onSubmit={sendMessage} className="message-form">
-        {showEmojiPicker && (
-          <div className="emoji-picker-container">
-            <button
-              type="button"
-              className="close-emoji-picker-btn"
-              onClick={() => setShowEmojiPicker(false)}
-              title="Close emoji picker"
-              aria-label="Close emoji picker"
-            >
-              ✕
-            </button>
-            <EmojiPicker onEmojiClick={(emojiObject) => setCurrentMessage(prev => prev + emojiObject.emoji)} />
-          </div>
-        )}
-        <button
-          type="button"
-          className={`emoji-btn ${showEmojiPicker ? 'active' : ''}`}
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          title={showEmojiPicker ? "Close emojis" : "Open emojis"}
-          aria-label={showEmojiPicker ? "Close emojis" : "Open emojis"}
-        >
-          {showEmojiPicker ? '✕' : '😀'}
-        </button>
-        <input
-          type="text"
-          placeholder="Type a message..."
-          value={currentMessage}
-          onChange={(e) => {
-            setCurrentMessage(e.target.value);
-            if (socketRef.current && (room || '').trim()) {
-              socketRef.current.emit("typing", {
-                room: (room || '').trim(),
-                username,
-              });
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !enterIsSend) {
-              e.preventDefault();
-            }
-          }}
-        />
-        <button className="btn-primary" type="submit">Send</button>
-      </form>
-    </div>
+    <Admin
+      socket={socketRef.current}
+      onClose={handleClose}
+    />
   );
 }
+
 export default App;
