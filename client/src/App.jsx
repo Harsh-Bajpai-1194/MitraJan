@@ -331,12 +331,15 @@ function App() {
       skipScrollToBottomRef.current = true;
       setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== messageId));
     };
-
     const handleRoomUsers = (users) => {
       setOnlineUsers(Array.isArray(users) ? users : []);
     };
     newSocket.on('room users', handleRoomUsers);
 
+    const handleDisconnect = () => {
+      setOnlineUsers([]);
+    };
+    newSocket.on('disconnect', handleDisconnect);
     newSocket.on('connect', handleConnect);
     newSocket.on('chat message', handleChatMessage);
     newSocket.on('system message', handleSystemMessage);
@@ -358,6 +361,7 @@ function App() {
     });
       return () => {
       newSocket.off('connect', handleConnect);
+      newSocket.off('disconnect', handleDisconnect);
       newSocket.off('chat message', handleChatMessage);
       newSocket.off('system message', handleSystemMessage);
       newSocket.off('chat history', handleChatHistory);

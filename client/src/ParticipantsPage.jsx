@@ -10,9 +10,9 @@ import { getUserColor } from './utils/getUserColor.js';
 
   const isOnline = (member) => {
     if (!member || !Array.isArray(onlineUsers)) return false;
-    const memberKey = (member.username || '').trim().toLowerCase();
+    const memberKey = member.memberId || (member.username || '').trim().toLowerCase();
     return onlineUsers.some(u => {
-      const uKey = (u.username || '').trim().toLowerCase();
+      const uKey = u.memberId || (u.username || '').trim().toLowerCase();
       return uKey === memberKey;
     });
   };

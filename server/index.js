@@ -2,6 +2,7 @@ const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']); // Force Node.js to use Google's public DNS
 
 const express = require('express');
+const crypto = require('crypto');
 const http = require('http');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
@@ -448,6 +449,26 @@ app.get('/api/rooms', async (req, res) => {
     }
 });
 
+/**
+ * Generates a stable, non-sensitive identifier for a member.
+ * Hashes email to avoid exposing raw email addresses in broadcasts (CWE-200).
+ * @param {string} username - Member's username.
+ * @param {string} [email] - Member's email.
+ * @returns {string}
+ */
+const getMemberId = (username, email) => {
+    if (email && typeof email === 'string' && email.trim()) {
+        return crypto.createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16);
+    }
+    return `user:${(username || 'Anonymous').trim().toLowerCase()}`;
+};
+
+/**
+ * Helper to fetch active unique users currently connected to a room.
+ * Keyed by stable memberId to support users with identical display names.
+ * @param {string} roomName - The name of the room.
+ * @returns {Array<{memberId: string, username: string, picture: string|null}>}
+ */
 const getRoomOnlineUsers = (roomName) => {
     if (!roomName) return [];
     const roomSockets = io.sockets.adapter.rooms.get(roomName);
@@ -457,12 +478,13 @@ const getRoomOnlineUsers = (roomName) => {
     for (const socketId of roomSockets) {
         const sock = io.sockets.sockets.get(socketId);
         if (sock && sock.username) {
-            const key = sock.username.toLowerCase();
-            if (!usersMap.has(key)) {
-                usersMap.set(key, {
+            const memberId = sock.memberId || getMemberId(sock.username, sock.email);
+            if (!usersMap.has(memberId)) {
+                usersMap.set(memberId, {
+                    memberId,
                     username: sock.username,
                     picture: sock.picture || null,
-                })
+                });
             }
         }
     }
@@ -506,9 +528,10 @@ app.get('/api/rooms/:roomName/members', async (req, res) => {
           const uniqueMembersMap = new Map();
           for (const m of messages) {
               if (m.username) {
-                  const key = m.email || m.username;
-                  if (!uniqueMembersMap.has(key)) {
-                      uniqueMembersMap.set(key, {
+                  const memberId = getMemberId(m.username, m.email);
+                  if (!uniqueMembersMap.has(memberId)) {
+                      uniqueMembersMap.set(memberId, {
+                          memberId,
                           username: m.username,
                           picture: m.picture || null,
                           email: m.email || ''
@@ -539,8 +562,12 @@ app.get('/api/rooms/:roomName/members', async (req, res) => {
         },
         { $sort: { username: 1 } }
       ]);
+      const membersWithId = members.map((m) => ({
+        ...m,
+        memberId: getMemberId(m.username, m.email),
+      }));
   
-      res.json(members);
+      res.json(membersWithId);
     } catch (error) {
       console.error('Failed to fetch room members:', error);
       const messages = roomMessages.get(req.params.roomName.trim()) || [];
@@ -585,11 +612,11 @@ io.on('connection', (socket) => {
     // Ask for username when connecting
     socket.on('set username', (name, room, email, picture) => {
         username = name.trim() || 'Anonymous';
-        socket.username = username; // Store username on the socket instance
+        socket.username = username;
         if (email) socket.email = email;
         if (picture) socket.picture = picture;
+        socket.memberId = getMemberId(username, email);
 
-        // If the socket is already in a room, refresh the room's presence
         if (socket.currentRoom) {
             io.to(socket.currentRoom).emit('room users', getRoomOnlineUsers(socket.currentRoom));
         }
