@@ -4,12 +4,12 @@ import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-do
 import io from 'socket.io-client';
 import { getSocketUrl } from './socket';
 
-// Page Routes
+// Page Routes & Route Wrappers
 import DiscoverRooms from './pages/DiscoverRooms';
-import ParticipantsPage from './pages/ParticipantsPage';
 import LoginView from './pages/LoginView';
 import ChatRoomPage from './pages/ChatRoomPage';
-import Admin from './pages/Admin';
+import ParticipantsRoute from './routes/ParticipantsRoute';
+import AdminRoute from './routes/AdminRoute';
 
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
 
@@ -718,55 +718,6 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
-  );
-}
-
-function ParticipantsRoute({ room, isLoggedIn, theme, setTheme, onlineUsers }) {
-  const { roomName } = useParams();
-  const decodedRoomName = decodeURIComponent(roomName || '');
-  const navigate = useNavigate();
-  const handleClose = () => {
-    if (room && isLoggedIn) {
-      navigate(`/chat/${encodeURIComponent(room)}`);
-    } else {
-      navigate('/discover');
-    }
-  };
-
-  const isCurrentRoom = Boolean(
-    room &&
-    decodedRoomName &&
-    room.trim().toLowerCase() === decodedRoomName.trim().toLowerCase()
-  );
-
-  return (
-    <ParticipantsPage
-      roomName={decodedRoomName}
-      onClose={handleClose}
-      theme={theme}
-      setTheme={setTheme}
-      onlineUsers={isCurrentRoom ? onlineUsers : []}
-    />
-  );
-}
-
-function AdminRoute({ socketRef, room, isLoggedIn, isAdmin }) {
-  const navigate = useNavigate();
-  const handleClose = () => {
-    if (room && isLoggedIn) {
-      navigate(`/chat/${encodeURIComponent(room)}`);
-    } else {
-      navigate('/login');
-    }
-  };
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-  return (
-    <Admin
-      socket={socketRef.current}
-      onClose={handleClose}
-    />
   );
 }
 
