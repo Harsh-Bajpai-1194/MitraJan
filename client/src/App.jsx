@@ -19,6 +19,23 @@ const getFormattedTime = (timestamp) => {
   return isNaN(date.getTime()) ? timestamp : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const getSecureRandomInt = (maxExclusive) => {
+  if (!Number.isInteger(maxExclusive) || maxExclusive <= 0) return 0;
+  if (!globalThis.crypto || typeof globalThis.crypto.getRandomValues !== 'function') return 0;
+
+  const maxUint32 = 0x100000000;
+  const limit = maxUint32 - (maxUint32 % maxExclusive);
+  const randomBuffer = new Uint32Array(1);
+
+  let value;
+  do {
+    globalThis.crypto.getRandomValues(randomBuffer);
+    value = randomBuffer[0];
+  } while (value >= limit);
+
+  return value % maxExclusive;
+};
+
 const getSongTitleFromUrl = (url) => {
   if (!url) return 'Cloudinary Music Track';
   try {
@@ -79,7 +96,9 @@ function App() {
   const messagesContainerRef = useRef(null);
   const socketRef = useRef(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-  const [currentSongIndex, setCurrentSongIndex] = useState(() => Math.floor(Math.random() * defaultCloudinarySongs.length));
+  const [currentSongIndex, setCurrentSongIndex] = useState(() =>
+    getSecureRandomInt(defaultCloudinarySongs.length)
+  );
   const audioRef = useRef(null);
   const unplayedIndicesRef = useRef([]);
   const pendingJoinRef = useRef(null);
@@ -162,6 +181,8 @@ function App() {
         if (Array.isArray(songs) && songs.length > 0) {
           const uniqueSongs = Array.from(new Set(songs));
           setSoundFiles(uniqueSongs);
+          setCurrentSongIndex((prev) => (prev < uniqueSongs.length ? prev : getSecureRandomInt(uniqueSongs.length)));
+          unplayedIndicesRef.current = [];
         }
       } catch (err) {
         console.warn('Could not fetch songs from backend, using defaults.');
@@ -199,13 +220,10 @@ function App() {
     setMessages([]);
     localStorage.setItem('chatSession', JSON.stringify({ name: userToSet, email: emailToSet, picture: pictureToSet }));
 
-    if (socketRef.current) {
-      if (socketRef.current.connected) {
-        socketRef.current.emit('join room', trimmedRoom);
-        socketRef.current.emit('set username', userToSet, trimmedRoom, emailToSet, pictureToSet);
-      } else {
-        pendingJoinRef.current = { room: trimmedRoom, username: userToSet, email: emailToSet, picture: pictureToSet };
-      }
+    pendingJoinRef.current = { room: trimmedRoom, username: userToSet, email: emailToSet, picture: pictureToSet };
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('join room', trimmedRoom);
+      socketRef.current.emit('set username', userToSet, trimmedRoom, emailToSet, pictureToSet);
     }
     startMusic();
     navigate(`/chat/${encodeURIComponent(trimmedRoom)}`);
@@ -257,6 +275,22 @@ function App() {
       };
     }
   }, [room, isLoggedIn, scrollToBottom]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      if (container.scrollTop <= 20 && !isFetchingOlderMessages && messages.length > 0) {
+        const oldestMessageId = messages[0]?._id;
+        if (oldestMessageId && socketRef.current && room) {
+          setIsFetchingOlderMessages(true);
+          socketRef.current.emit('fetch older messages', { room, lastMessageId: oldestMessageId });
+        }
+      }
+    };
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [messages, isFetchingOlderMessages, room, isLoggedIn]);
 
   useEffect(() => {
     const newSocket = io(getSocketUrl(), {
@@ -401,7 +435,7 @@ function App() {
       unplayedIndicesRef.current = Array.from({ length: soundFiles.length }, (_, i) => i)
         .filter(i => i !== currentSongIndex);
     }
-    const randPick = Math.floor(Math.random() * unplayedIndicesRef.current.length);
+    const randPick = getSecureRandomInt(unplayedIndicesRef.current.length);
     const nextIdx = unplayedIndicesRef.current[randPick];
     unplayedIndicesRef.current.splice(randPick, 1);
     setCurrentSongIndex(nextIdx);
@@ -412,9 +446,13 @@ function App() {
     if (!audio) return;
     const currentTrack = soundFiles[currentSongIndex];
     if (currentTrack) {
-      audio.src = currentTrack;
+      if (audio.src !== currentTrack) {
+        audio.src = currentTrack;
+      }
       if (isMusicPlaying) {
         audio.play().catch(() => {});
+      } else {
+        audio.pause();
       }
     }
     const handleEnded = () => playNextSong();
@@ -482,7 +520,7 @@ function App() {
     setIsLoggedIn(true);
     setMessages([]);
     localStorage.setItem('chatSession', JSON.stringify({ name: u, email: em, picture: pic }));
-
+    pendingJoinRef.current = { room: targetRoom, username: u, email: em, picture: pic };
     if (socketRef.current?.connected) {
       socketRef.current.emit('join room', targetRoom);
       socketRef.current.emit('set username', u, targetRoom, em, pic);

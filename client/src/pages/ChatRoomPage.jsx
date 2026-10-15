@@ -59,7 +59,7 @@ function ChatRoomPage({
   getSongTitleFromUrl
 }) {
   const { roomName } = useParams();
-  const decodedRoomName = decodeURIComponent(roomName || '');
+  const decodedRoomName = roomName || '';
   const navigate = useNavigate();
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

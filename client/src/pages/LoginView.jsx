@@ -56,7 +56,7 @@ function LoginView({
             </span>
           </div>
 
-          <GoogleSignIn onSuccess={handleGoogleSignIn} />
+          <GoogleSignIn onSignIn={handleGoogleSignIn} />
           <div className="login-divider">
             <span>OR</span>
           </div>

@@ -7,7 +7,7 @@ import ParticipantsPage from '../pages/ParticipantsPage';
  */
 function ParticipantsRoute({ room, isLoggedIn, theme, setTheme, onlineUsers }) {
   const { roomName } = useParams();
-  const decodedRoomName = decodeURIComponent(roomName || '');
+  const decodedRoomName = roomName || '';
   const navigate = useNavigate();
 
   const handleClose = () => {

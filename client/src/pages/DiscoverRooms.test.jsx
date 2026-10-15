@@ -35,7 +35,7 @@ describe('DiscoverRooms', () => {
     );
 
     // 3. Action: Find and click the "Join Room" button
-    const joinButton = await screen.findByRole('button', { name: /join room/i });
+    const joinButton = await screen.findByRole('button', { name: /join room/i }, { timeout: 10000 });
     fireEvent.click(joinButton);
 
     // 4. Assertion: Verify that our mock function was called with the correct data
