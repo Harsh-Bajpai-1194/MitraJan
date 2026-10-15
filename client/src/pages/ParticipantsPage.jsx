@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ParticipantsPage.css';
-import { getAvatarUrl } from './utils/getAvatarUrl.js';
-import { getUserColor } from './utils/getUserColor.js';
+import { getAvatarUrl } from '../utils/getAvatarUrl.js';
+import { getUserColor } from '../utils/getUserColor.js';
 
 const ParticipantsPage = ({ roomName, onClose, theme, setTheme }) => {
   const [members, setMembers] = useState([]);
